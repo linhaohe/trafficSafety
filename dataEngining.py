@@ -170,11 +170,9 @@ class DataEngining:
 
         loc = get('Crossing Location Relative to Bus')
         if loc == 'in front':
-            row['Crossing Location Relative to Bus'] = 0
-        elif loc == 'behind':
-            row['Crossing Location Relative to Bus'] = 1
+            row['Crossing Location Relative to Bus'] = DataEngining.crossingLocationRelativeToBus.front.value
         else:
-            row['Crossing Location Relative to Bus'] = -1
+            row['Crossing Location Relative to Bus'] = DataEngining.parseEnum(get('Crossing Location Relative to Bus'), DataEngining.crossingLocationRelativeToBus)
 
         row['Crossing Location Relative to Bus Stop'] = DataEngining.parseEnum(
             get('Crossing Location Relative to Bus Stop'),
