@@ -135,7 +135,7 @@ class DataEngining:
         row['Clothing Color'] = DataEngining.parseEnum(get('Clothing Color'), DataEngining.clothingColor)
 
         tbi = get('Type of Bus Interaction')
-        if tbi == 'waitedatbusstop':
+        if tbi == 'waited at bus stop':
             row['Type of Bus Interaction'] = DataEngining.busInteractions.waited.value
         else:
             row['Type of Bus Interaction'] = DataEngining.parseEnum(tbi, DataEngining.busInteractions)
