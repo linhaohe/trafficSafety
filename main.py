@@ -86,6 +86,8 @@ def generateReferenceDataFrame(dflist):
 
     # Build DataFrame once at the end
     qualityDF = pd.DataFrame(rows)
+    qualityDF = qualityDF.astype({"index1": "Int64", "score1": "float64", "index2": "Int64", "score2": "float64"})
+
     return qualityDF
 def compareParamets(A, B, C): 
     if A == B or A == C: 
@@ -131,8 +133,9 @@ def generateQualityControllDataFrame(refDF, dflist):
     df2 = dflist[2]
     for index in refDF.itertuples():
         row0 = df0.iloc[index.Index]
-        row1 = df1.iloc[index.Index]
-        row2 = df2.iloc[index.Index]
+        row1 = df1.iloc[int(refDF.iloc[index.Index].index1)]
+        row2 = df2.iloc[int(refDF.iloc[index.Index].index2)]
+
         videoTitle = compareParamets(row0['Video Title'], row1['Video Title'], row2['Video Title'])
         locationName = compareParamets(row0['Location Name'], row1['Location Name'], row2['Location Name'])
         busStopIDs = compareParamets(row0['Bus Stop IDs/Addresses'], row1['Bus Stop IDs/Addresses'], row2['Bus Stop IDs/Addresses'])
@@ -225,8 +228,10 @@ def accuarcyTest(humanQuailityDF, computedQualityDF):
 def main():
     files = ["./resource/Northampton_Court_House/Neva.csv","./resource/Northampton_Court_House/Primah.csv","./resource/Northampton_Court_House/Gareth.csv"]
     dflist = generateDateFrameList(files)
+    # print(dflist[1])
+    # print(dflist[0].iloc[53])
     refDF = generateReferenceDataFrame(dflist)
-    # refDF.to_csv('output_refDF_data.csv', index=True,header=True)
+    refDF.to_csv('output_refDF_data.csv', index=True,header=True)
     dfQualityControl = generateQualityControllDataFrame(refDF,dflist)
     dfQualityControl = dfQualityControl.transpose()
     dfQualityControl.to_csv('output_data.csv', index=True,header=False)
