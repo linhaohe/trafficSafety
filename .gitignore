@@ -172,6 +172,7 @@ pyrightconfig.json
 
 computeData/
 output_data.csv
+output_refDF_data.csv
 
 # macOS system files
 .DS_Store

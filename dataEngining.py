@@ -31,6 +31,7 @@ class DataEngining:
         walk = 0
         run = 1
         courtesy = 2
+        cyclist = 3
         other = -1
 
     class crossingLocationRelativeToBus(Enum):
