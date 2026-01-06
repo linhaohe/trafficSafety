@@ -49,7 +49,7 @@ def computeFeatureScores(row1, row2):
     score = timeScore * 0.0714 + conditionScore * 0.03125 + computeNumericScore(row1, row2) * 0.25
     return score
 
-def generateReferenceDataFrame(pathUrl,dflist):
+def generateReferenceDataFrame(dflist):
     # Initialize empty list to collect rows
     rows = []
     df0 = dflist[0]
@@ -110,7 +110,7 @@ def compareTimeDistance(timeA,timeB,timeC):
 
 def secondsToTimeString(seconds):
     if seconds is None or seconds < 0:
-        return ""
+        return "N/A"
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
     secs = seconds % 60
@@ -223,12 +223,13 @@ def accuarcyTest(humanQuailityDF, computedQualityDF):
     
 
 def main():
-    files = ["./resource/Belmont+Edward_St/Neva.csv","./resource/Belmont+Edward_St/Primah.csv","./resource/Belmont+Edward_St/Gareth.csv"]
+    files = ["./resource/Northampton_Court_House/Neva.csv","./resource/Northampton_Court_House/Primah.csv","./resource/Northampton_Court_House/Gareth.csv"]
     dflist = generateDateFrameList(files)
-    refDF = generateReferenceDataFrame(files,dflist)
+    refDF = generateReferenceDataFrame(dflist)
+    # refDF.to_csv('output_refDF_data.csv', index=True,header=True)
     dfQualityControl = generateQualityControllDataFrame(refDF,dflist)
     dfQualityControl = dfQualityControl.transpose()
-    dfQualityControl.to_csv('output_data.csv', index=True)
+    dfQualityControl.to_csv('output_data.csv', index=True,header=False)
 
 def performAccuarcyTest(outPutFile,humanQualityFile):
     dfCompute = DataEngining.load_csv(outPutFile)
