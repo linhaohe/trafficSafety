@@ -171,6 +171,7 @@ poetry.toml
 pyrightconfig.json
 
 computeData/
+output/
 output_data.csv
 output_refDF_data.csv
 
