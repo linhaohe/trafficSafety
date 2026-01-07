@@ -1,13 +1,14 @@
 import pandas as pd
 import math
 import os
-from dataEngining import generateDateFrameList
+from dataEngining import generateDateFrameList, generateDateFrame,float_cols
 from dataEngining import DataEngining
 
 class accuracyScore:
     def __init__(self,nofVistedCell = 0,nofDifferent = 0):
         self.nofVistedCell = nofVistedCell
         self.nofDifferent = nofDifferent
+        self.filesAccuracy = []
     
     def update(self,vistedCells, differentCells):
         self.nofVistedCell += vistedCells
@@ -17,6 +18,19 @@ class accuracyScore:
         if self.nofVistedCell == 0:
             return 0.0
         return 1.0 - (self.nofDifferent / self.nofVistedCell)
+    
+    def getFilesAccuracy(self):
+        return self.filesAccuracy
+    
+    def appendFileAccuracy(self,fileName, accuracy):
+        self.filesAccuracy.append({
+            'Location': fileName,
+            'Accuracy':accuracy
+            })
+    
+    def reset(self):
+        self.nofVistedCell = 0
+        self.nofDifferent = 0
     
 def calculateNumericScore(num1, num2,threshold):
     numScore = math.exp(-abs(num1 - num2) / threshold)
@@ -233,40 +247,56 @@ def constructRowDict(row0, row1, row2,index,accuracy):
             "General Reviewer Notes":'0'
         }
 
-def generateQualityControllDataFrame(refDF, dflist):
+def generateQualityControllDataFrame(refDF, dflist, accuracy):
     rows = []
     df0 = dflist[0]
     df1 = dflist[1]
     df2 = dflist[2]
-    accuracy = accuracyScore()
     for index in refDF.itertuples():
         row0 = df0.iloc[index.Index]
         row1 = df1.iloc[int(refDF.iloc[index.Index].index1)]
         row2 = df2.iloc[int(refDF.iloc[index.Index].index2)]
         rows.append(constructRowDict(row0, row1, row2,index.Index,accuracy)) 
-    return pd.DataFrame(rows),accuracy
+    return pd.DataFrame(rows)
 
 def accuarcyTest(humanQuailityDF, computedQualityDF):
     correctCount = 0
-    totalCount = len(computedQualityDF)
-    for i in range(totalCount):
-        humanRow = humanQuailityDF.iloc[i]
-        computedRow = computedQualityDF.iloc[i]
-        for col in humanQuailityDF.columns:
-            if(humanRow[col] == computedRow[col]):
-                correctCount += 1
-    return correctCount/(totalCount * len(computedQualityDF.columns))
+    indexCount = 0
+    rowCount = 0
+    for row in humanQuailityDF.itertuples():
+        if(len(computedQualityDF) > rowCount):
+            humanRow = humanQuailityDF.iloc[row.Index]
+            computedRow = computedQualityDF.iloc[row.Index]
+            for col in humanQuailityDF.columns:
+                if(humanRow[col] == computedRow[col] or (pd.isna(humanRow[col]) or humanRow[col] =='0' and pd.isna(computedRow[col]) or computedRow[col] =='0')):
+                    correctCount += 1
+                    # print(col, humanRow[col])
+                elif col in float_cols:
+                    if abs(float(humanRow[col]) - float(computedRow[col])) < 3:
+                        correctCount += 1
+                        # print(col,humanRow[col])
 
-def computeTrafficData(fileList):
+                indexCount += 1
+            rowCount +=1
+        else:
+            break
+    if len(humanQuailityDF) - rowCount > 0:
+        indexCount += len(humanQuailityDF) - rowCount * humanQuailityDF.shape[1]
+    elif len(computedQualityDF) - rowCount > 0:
+        indexCount += len(computedQualityDF) - rowCount * computedQualityDF.shape[1]
+    return correctCount/indexCount
+
+def computeTrafficData(fileList,accuracy):
     dflist = generateDateFrameList(fileList)
     refDF = generateReferenceDataFrame(dflist)
     refDF.to_csv('output_refDF_data.csv', index=True,header=True)
-    dfQualityControl,accuracy = generateQualityControllDataFrame(refDF,dflist)
-    print(f"Overall Accuracy: {accuracy.getAccuarcy()*100:.2f}%")
+    dfQualityControl = generateQualityControllDataFrame(refDF,dflist,accuracy)
     dfQualityControl = dfQualityControl.transpose()
+    # print(f"Overall Accuracy: {accuracy.getAccuarcy()*100:.2f}%")
     return dfQualityControl
 
 def computeDataFolderToCSV(resourceFolderPath,outputFolderPath):
+    accuracy = accuracyScore()
     for fileFolder in os.listdir(resourceFolderPath):
         filePath = os.path.join(resourceFolderPath, fileFolder)
         if(os.path.isdir(filePath)):
@@ -274,17 +304,22 @@ def computeDataFolderToCSV(resourceFolderPath,outputFolderPath):
             for filename in os.listdir(filePath):
                 if filename.endswith(".csv"):
                     fileList.append(os.path.join(filePath,filename))
-            print(f"Processing folder: {fileFolder} with files: {fileList}")
-            dfQualityControl = computeTrafficData(fileList)
+            dfQualityControl = computeTrafficData(fileList,accuracy)
+            accuracy.appendFileAccuracy(fileFolder,accuracy.getAccuarcy())
+            accuracy.reset()
             dfQualityControl.to_csv(os.path.join(outputFolderPath,fileFolder)+'.csv', index=True,header=False)
-    
-
+    accuracyDF = pd.DataFrame(accuracy.getFilesAccuracy(), columns=['Location','Accuracy'])
+    accuracyDF.to_csv(os.path.join(outputFolderPath,'accuracy_summary.csv'),header=True)   
+     
 def performAccuarcyTest(outPutFile,humanQualityFile):
-    dfCompute = DataEngining.load_csv(outPutFile)
-    dfHuman = DataEngining.load_csv(humanQualityFile)
+    dfCompute = generateDateFrame(outPutFile).dropna(how='all')
+    dfHuman = generateDateFrame(humanQualityFile).dropna(how='all')
+    # print(dfHuman)
+    # print(dfCompute)
     accuracy = accuarcyTest(dfHuman,dfCompute)
     print(f"Accuracy: {accuracy*100:.2f}%")
     
 if __name__ == "__main__":
-    computeDataFolderToCSV('./resource','./output')
+    # computeDataFolderToCSV('./resource/inputData','./output')
+    performAccuarcyTest('./output/Northampton_Court_House.csv','./resource/human_quality_control/Norhampton_Court_House.csv')
 

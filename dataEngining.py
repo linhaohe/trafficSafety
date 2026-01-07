@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 from enum import Enum
 
 class DataEngining:
@@ -106,12 +105,6 @@ class DataEngining:
         except:
             return -1
 
-    @staticmethod
-    def encode_circular_time(seconds):
-        if seconds is None or seconds < 0:
-            return 0.0, 0.0
-        angle = 2 * np.pi * (seconds / 86400)
-        return np.sin(angle), np.cos(angle)
 
     # ---------------- MAIN ROW PROCESSOR ----------------
     @staticmethod
@@ -152,10 +145,6 @@ class DataEngining:
             sec = DataEngining.parseTimeObject(get(col))
             row[col] = sec
 
-            sin_val, cos_val = DataEngining.encode_circular_time(sec)
-            row[f"{col} (sin)"] = sin_val
-            row[f"{col} (cos)"] = cos_val
-
         row['Crosswalk Crossing?'] = DataEngining.parseEnum(get('Crosswalk Crossing?'), DataEngining.boolean)
         row['Refuge Island'] = DataEngining.parseEnum(get('Refuge Island'), DataEngining.boolean)
         row['Pedestrian Phase Crossing?'] = DataEngining.parseEnum(get('Pedestrian Phase Crossing?'), DataEngining.boolean)
@@ -194,19 +183,10 @@ int_cols = [
     'Crossing Location Relative to Bus','Vehicle Traffic',
     'Clothing Color'
 ]
-
 float_cols = [
     'Bus Stop Arrival Time','Bus Stop Departure Time','Intend to Cross Timestamp',
     'Crossing Start Time','Refuge Island Start Time','Refuge Island End Time',
     'Crossing End Time',
-
-    'Bus Stop Arrival Time (sin)', 'Bus Stop Arrival Time (cos)',
-    'Bus Stop Departure Time (sin)', 'Bus Stop Departure Time (cos)',
-    'Intend to Cross Timestamp (sin)', 'Intend to Cross Timestamp (cos)',
-    'Crossing Start Time (sin)', 'Crossing Start Time (cos)',
-    'Refuge Island Start Time (sin)', 'Refuge Island Start Time (cos)',
-    'Refuge Island End Time (sin)', 'Refuge Island End Time (cos)',
-    'Crossing End Time (sin)', 'Crossing End Time (cos)'
 ]
 
 dtypeMapping = {
@@ -223,14 +203,8 @@ def generateDateFrameList(pathUrls):
         dfList.append(loadDf)
     return dfList
 
-def generateDateFrame(pathUrls):
-    dfList = []
-    maxSize = 0
-    for path in pathUrls:
-        loadDf = DataEngining.load_csv(path)
-        dfList.append(loadDf)
-        maxSize = max(maxSize, len(loadDf))
-    df = pd.concat(dfList, ignore_index=True)
+def generateDateFrame(pathUrl):
+    df = DataEngining.load_csv(pathUrl)
     df = df.apply(DataEngining.dataEnginingRow, axis=1)
     df = df.astype(dtypeMapping)
-    return df, maxSize
+    return df
