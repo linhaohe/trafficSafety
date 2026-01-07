@@ -44,15 +44,15 @@ def calculateConditionScore(condition1, condition2):
         return 0.0
 
 #weight 50%
-def computeTimeScore(row1, row2):
+def computeTimeScore(row1, row2, threshold = 3):
     score = 0.0
-    score += calculateNumericScore(row1['Crossing Start Time'], row2['Crossing Start Time'], 10)
-    score += calculateNumericScore(row1['Bus Stop Arrival Time'], row2['Bus Stop Arrival Time'], 10)
-    score += calculateNumericScore(row1['Bus Stop Departure Time'], row2['Bus Stop Departure Time'], 10)
-    score += calculateNumericScore(row1['Intend to Cross Timestamp'], row2['Intend to Cross Timestamp'], 10)
-    score += calculateNumericScore(row1['Refuge Island Start Time'], row2['Refuge Island Start Time'], 10)
-    score += calculateNumericScore(row1['Refuge Island End Time'], row2['Refuge Island End Time'], 10)
-    score += calculateNumericScore(row1['Crossing End Time'], row2['Crossing End Time'], 10)
+    score += calculateNumericScore(row1['Crossing Start Time'], row2['Crossing Start Time'], threshold)
+    score += calculateNumericScore(row1['Bus Stop Arrival Time'], row2['Bus Stop Arrival Time'], threshold)
+    score += calculateNumericScore(row1['Bus Stop Departure Time'], row2['Bus Stop Departure Time'], threshold)
+    score += calculateNumericScore(row1['Intend to Cross Timestamp'], row2['Intend to Cross Timestamp'], threshold)
+    score += calculateNumericScore(row1['Refuge Island Start Time'], row2['Refuge Island Start Time'], threshold)
+    score += calculateNumericScore(row1['Refuge Island End Time'], row2['Refuge Island End Time'], threshold)
+    score += calculateNumericScore(row1['Crossing End Time'], row2['Crossing End Time'], threshold)
     return score
 
 #weight 25%
@@ -73,13 +73,13 @@ def computeNumericScore(row1, row2):
     score += calculateNumericScore(row1['Group Size'], row2['Group Size'], 2)
     return score
 
-def computeFeatureScores(row1, row2):
-    timeScore = computeTimeScore(row1, row2)
+def computeFeatureScores(row1, row2,timeThreshold):
+    timeScore = computeTimeScore(row1, row2,timeThreshold)
     conditionScore = computeConditionScore(row1, row2)
     score = timeScore * 0.0714 + conditionScore * 0.03125 + computeNumericScore(row1, row2) * 0.25
     return score
 
-def generateReferenceDataFrame(dflist):
+def generateReferenceDataFrame(dflist,timeThreshold):
     # Initialize empty list to collect rows
     rows = []
     df0 = dflist[0]
@@ -94,14 +94,14 @@ def generateReferenceDataFrame(dflist):
 
         # Compare with reviewer 1
         for row1 in df1.itertuples():
-            score = computeFeatureScores(df0.iloc[row.Index], df1.iloc[row1.Index])
+            score = computeFeatureScores(df0.iloc[row.Index], df1.iloc[row1.Index],timeThreshold)
             if score > maxScore1:
                 maxScore1 = score
                 maxIndex1 = row1.Index
 
         # Compare with reviewer 2
         for row2 in df2.itertuples():
-            score = computeFeatureScores(df0.iloc[row.Index], df2.iloc[row2.Index])
+            score = computeFeatureScores(df0.iloc[row.Index], df2.iloc[row2.Index],timeThreshold)
             if score > maxScore2:
                 maxScore2 = score
                 maxIndex2 = row2.Index
@@ -270,12 +270,9 @@ def accuarcyTest(humanQuailityDF, computedQualityDF):
             for col in humanQuailityDF.columns:
                 if(humanRow[col] == computedRow[col] or (pd.isna(humanRow[col]) or humanRow[col] =='0' and pd.isna(computedRow[col]) or computedRow[col] =='0')):
                     correctCount += 1
-                    # print(col, humanRow[col])
                 elif col in float_cols:
                     if abs(float(humanRow[col]) - float(computedRow[col])) < 3:
                         correctCount += 1
-                        # print(col,humanRow[col])
-
                 indexCount += 1
             rowCount +=1
         else:
@@ -286,16 +283,15 @@ def accuarcyTest(humanQuailityDF, computedQualityDF):
         indexCount += len(computedQualityDF) - rowCount * computedQualityDF.shape[1]
     return correctCount/indexCount
 
-def computeTrafficData(fileList,accuracy):
+def computeTrafficData(fileList,accuracy,timeThreshold):
     dflist = generateDateFrameList(fileList)
-    refDF = generateReferenceDataFrame(dflist)
+    refDF = generateReferenceDataFrame(dflist,timeThreshold)
     refDF.to_csv('output_refDF_data.csv', index=True,header=True)
     dfQualityControl = generateQualityControllDataFrame(refDF,dflist,accuracy)
     dfQualityControl = dfQualityControl.transpose()
-    # print(f"Overall Accuracy: {accuracy.getAccuarcy()*100:.2f}%")
-    return dfQualityControl
+    return dfQualityControl,refDF
 
-def computeDataFolderToCSV(resourceFolderPath,outputFolderPath):
+def computeDataFolderToCSV(resourceFolderPath,outputFolderPath,timeThreshold = 3):
     accuracy = accuracyScore()
     for fileFolder in os.listdir(resourceFolderPath):
         filePath = os.path.join(resourceFolderPath, fileFolder)
@@ -304,22 +300,21 @@ def computeDataFolderToCSV(resourceFolderPath,outputFolderPath):
             for filename in os.listdir(filePath):
                 if filename.endswith(".csv"):
                     fileList.append(os.path.join(filePath,filename))
-            dfQualityControl = computeTrafficData(fileList,accuracy)
+            dfQualityControl,refDF = computeTrafficData(fileList,accuracy,timeThreshold)
             accuracy.appendFileAccuracy(fileFolder,accuracy.getAccuarcy())
             accuracy.reset()
             dfQualityControl.to_csv(os.path.join(outputFolderPath,fileFolder)+'.csv', index=True,header=False)
+            refDF.to_csv(os.path.join(outputFolderPath,fileFolder)+'+refDF.csv', index=True,header=False)
     accuracyDF = pd.DataFrame(accuracy.getFilesAccuracy(), columns=['Location','Accuracy'])
     accuracyDF.to_csv(os.path.join(outputFolderPath,'accuracy_summary.csv'),header=True)   
      
 def performAccuarcyTest(outPutFile,humanQualityFile):
     dfCompute = generateDateFrame(outPutFile).dropna(how='all')
     dfHuman = generateDateFrame(humanQualityFile).dropna(how='all')
-    # print(dfHuman)
-    # print(dfCompute)
     accuracy = accuarcyTest(dfHuman,dfCompute)
     print(f"Accuracy: {accuracy*100:.2f}%")
     
 if __name__ == "__main__":
-    # computeDataFolderToCSV('./resource/inputData','./output')
-    performAccuarcyTest('./output/Northampton_Court_House.csv','./resource/human_quality_control/Norhampton_Court_House.csv')
+    computeDataFolderToCSV('./resource/inputData','./output',timeThreshold=3)
+    # performAccuarcyTest('./output/Northampton_Court_House_V43.csv','./resource/human_quality_control/Norhampton_Court_House.csv')
 
