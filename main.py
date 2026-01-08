@@ -42,12 +42,13 @@ def calculateConditionScore(condition1, condition2):
 
 # Scoring weights
 TIME_SCORE_WEIGHT = 0.0714
+DEFAULT_TIME_THRESHOLD_Weight = 10
 CONDITION_SCORE_WEIGHT = 0.05556
 DEFAULT_PERCENTAGE_THRESHOLD = 0.8
 DEFAULT_TIME_THRESHOLD = 3
 
 
-def computeTimeScore(row1, row2, threshold=DEFAULT_TIME_THRESHOLD):
+def computeTimeScore(row1, row2, threshold=DEFAULT_TIME_THRESHOLD_Weight):
     """Compute time-based similarity score (weight: 50%)."""
     time_fields = [
         'Crossing Start Time',
@@ -158,48 +159,79 @@ def generateReferenceDataFrame(dflist, timeThreshold):
         "score3": "float64"
     })
     return qualityDF
-def compareParameters(A, B, C, accuracy, percentageThreshold=0):
+def compareParameters(row0, row1, row2, fieldName, accuracy, percentageThreshold):
     """Compare three parameter values and update accuracy tracking.
     
-    Returns the agreed value if at least two match, None otherwise.
+    Uses similarity scores to determine if values match:
+    - scoreAB: similarity score between A and B
+    - scoreAC: similarity score between A and C
+    - scoreBC: similarity score between B and C
+    
+    Returns the agreed value if at least two match (with scores above threshold), 
+    None otherwise.
     """
-    if A == B or A == C or B == C:
-        # If all are same
-        if A == B and A == C:
-            accuracy.update(3, 0)
-            return A
-        # If two are same
-        accuracy.update(3, 1)
+    A = row0['row'][fieldName]
+    B = row1['row'][fieldName]
+    C = row2['row'][fieldName]
+    
+    # Extract similarity scores
+    scoreAB = row0['score'][0]  # A to B score
+    scoreAC = row0['score'][1]  # A to C score
+    scoreBC = row1['score'][1]  # B to C score (fixed: was row1['score'][0])
+    
+    # Check if values match
+    ab_match = (A == B) and (scoreAB >= percentageThreshold)
+    ac_match = (A == C) and (scoreAC >= percentageThreshold)
+    bc_match = (B == C) and (scoreBC >= percentageThreshold)
+    
+    # Count how many pairs match
+    match_count = sum([ab_match, ac_match, bc_match])
+    
+    # If all three match with scores above threshold
+    if match_count == 3:
+        accuracy.update(3, 0)
         return A
-    # If all are different
+    
+    # If at least one pair match
+    if match_count >= 1:
+        accuracy.update(3, 1)
+        # Return the value that appears in at least two matches
+        if ab_match or ac_match:
+            return A
+        elif ab_match or bc_match:
+            return B
+        return C
+    
+    # If all are different or insufficient matches
     accuracy.update(3, 3)
-    return None
+    return ""
 
-def compareTimeDistance(timeA, timeB, timeC, accuracy, threshold=DEFAULT_TIME_THRESHOLD):
+def compareTimeDistance(timeA, timeB, timeC, accuracy, timeThreshold):
     """Compare three time values and return the one with minimum average distance."""
     distAB = abs(timeA - timeB)
     distAC = abs(timeA - timeC)
     distBC = abs(timeB - timeC)
-    avgA = (distAB + distAC) / 2
-    avgB = (distAB + distBC) / 2
-    avgC = (distAC + distBC) / 2
+    matchAB = distAB <= timeThreshold
+    matchAC = distAC <= timeThreshold
+    matchBC = distBC <= timeThreshold
     
-    if distAB <= threshold or distAC <= threshold or distBC <= threshold:
-        if distAB <= threshold and distAC <= threshold and distBC <= threshold:
+    if matchAB or matchAC or matchBC:
+        if distAB and distAC  and distBC :
             # If all are same
             accuracy.update(3, 0)
+            return timeA
         else:
             # If two are same
             accuracy.update(3, 1)
-    else:
-        # If all are different
-        accuracy.update(3, 3)
-
-    if avgA <= avgB and avgA <= avgC:
-        return timeA
-    elif avgB <= avgA and avgB <= avgC:
-        return timeB
-    return timeC
+            if matchAB:
+                return timeA
+            elif matchAC:
+                return timeC
+            return timeB
+    
+    # If all are different
+    accuracy.update(3, 3)
+    return -1
 
 def secondsToTimeString(seconds):
     """Convert seconds to HH:MM:SS format."""
@@ -220,13 +252,13 @@ def enumToString(enumVal, enumList):
     except:
         return ""
     
-def constructRowDict(row0, row1, row2, index, accuracy):
+def constructRowDict(row0, row1, row2, index, accuracy,percentageThreshold,timeThreshold):
     """Construct a row dictionary by comparing three reviewer rows."""
     def compare(field):
-        return compareParameters(row0[field], row1[field], row2[field], accuracy)
+        return compareParameters(row0, row1, row2, field, accuracy,percentageThreshold)
     
     def compareTime(field):
-        return compareTimeDistance(row0[field], row1[field], row2[field], accuracy)
+        return compareTimeDistance(row0['row'][field], row1['row'][field], row2['row'][field], accuracy,timeThreshold)
     
     def enumToStr(field, enumType):
         return enumToString(compare(field), enumType)
@@ -306,16 +338,28 @@ def constructRowDict(row0, row1, row2, index, accuracy):
         "General Reviewer Notes": '0'
     }
 
-def generateQualityControlDataFrame(refDF, dflist, accuracy):
+def generateQualityControlDataFrame(refDF, dflist, accuracy,percentageThreshold,timeThreshold):
     """Generate quality control DataFrame from reference DataFrame and dataframes."""
     rows = []
     df0, df1, df2 = dflist[0], dflist[1], dflist[2]
     
     for index in refDF.itertuples():
-        row0 = df0.iloc[index.Index]
-        row1 = df1.iloc[int(refDF.iloc[index.Index].index1)]
-        row2 = df2.iloc[int(refDF.iloc[index.Index].index2)]
-        rows.append(constructRowDict(row0, row1, row2, index.Index, accuracy))
+        #A to B and A to C
+        row0 = {
+            "row":df0.iloc[index.Index],
+            "score":[index.score1,index.score2]
+            }
+        #B to A and B to C
+        row1 = {
+            "row":df1.iloc[int(refDF.iloc[index.Index].index1)],
+            "score":[index.score1,index.score3]
+        }
+        #C to A and C to B
+        row2 = {
+            "row":df2.iloc[int(refDF.iloc[index.Index].index2)],
+            "score":[index.score2,index.score3]
+        }
+        rows.append(constructRowDict(row0, row1, row2, index.Index, accuracy,percentageThreshold,timeThreshold))
     
     return pd.DataFrame(rows)
 
@@ -358,15 +402,15 @@ def accuracyTest(humanQualityDF, computedQualityDF):
     
     return correctCount / indexCount if indexCount > 0 else 0.0
 
-def computeTrafficData(fileList, accuracy, timeThreshold):
+def computeTrafficData(fileList, accuracy,percentageThreshold,timeThreshold):
     """Compute traffic data from file list and generate quality control DataFrame."""
     dflist = generateDateFrameList(fileList)
     refDF = generateReferenceDataFrame(dflist, timeThreshold)
-    dfQualityControl = generateQualityControlDataFrame(refDF, dflist, accuracy)
+    dfQualityControl = generateQualityControlDataFrame(refDF, dflist, accuracy,percentageThreshold,timeThreshold)
     dfQualityControl = dfQualityControl.transpose()
     return dfQualityControl, refDF
 
-def computeDataFolderToCSV(resourceFolderPath, outputFolderPath, timeThreshold=DEFAULT_TIME_THRESHOLD,percentageThreshold=DEFAULT_PERCENTAGE_THRESHOLD):
+def computeDataFolderToCSV(resourceFolderPath, outputFolderPath, percentageThreshold,timeThreshold):
     """Process all folders in resource path and generate CSV outputs."""
     accuracy = AccuracyScore()
     
@@ -379,7 +423,7 @@ def computeDataFolderToCSV(resourceFolderPath, outputFolderPath, timeThreshold=D
                 if filename.endswith(".csv")
             ]
             
-            dfQualityControl, refDF = computeTrafficData(fileList, accuracy, timeThreshold)
+            dfQualityControl, refDF = computeTrafficData(fileList, accuracy, percentageThreshold, timeThreshold)
             accuracy.appendFileAccuracy(fileFolder, accuracy.getAccuracy())
             accuracy.reset()
             
@@ -407,7 +451,7 @@ def performAccuracyTest(outputFile, humanQualityFile):
     
 if __name__ == "__main__":
     # print(DataEngining.parseTimeObject('15:20:20PM'))
-    computeDataFolderToCSV('./resource/inputData', './output')
+    computeDataFolderToCSV('./resource/inputData', './output',percentageThreshold=0.65,timeThreshold=10)
     performAccuracyTest('./output/Northampton_Court_House_V43.csv', 
                         './resource/human_quality_control/Norhampton_Court_House.csv')
 
