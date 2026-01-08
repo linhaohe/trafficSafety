@@ -123,9 +123,9 @@ class DataEngining:
     def parseTimeObject(pd_timestamp):
         """Parse pandas timestamp to seconds since midnight.
         
-        Validates time format and catches invalid inputs like:
-        - "15:00:32 PM" (24-hour format with AM/PM suffix - hour > 12 is invalid)
-        - Hours > 23, minutes > 59, seconds > 59
+        Handles invalid inputs by converting them:
+        - "15:20:20 PM" -> treated as 24-hour time (ignores erroneous PM suffix)
+        - Validates hours > 23, minutes > 59, seconds > 59
         """
         if pd.isna(pd_timestamp):
             return -1
@@ -135,8 +135,8 @@ class DataEngining:
             time_upper = time_str.upper()
             has_am_pm = 'AM' in time_upper or 'PM' in time_upper
             
-            # Check for invalid 24-hour format with AM/PM suffix
-            # Example: "15:00:32 PM" is invalid (hour 15 with PM doesn't make sense)
+            # Check for 24-hour format with erroneous AM/PM suffix
+            # Example: "15:20:20 PM" should be treated as 24-hour time
             if has_am_pm:
                 # Pattern: HH:MM:SS AM/PM or HH:MM AM/PM
                 time_match = re.match(r'(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)', time_upper)
@@ -146,8 +146,13 @@ class DataEngining:
                     second_str = time_match.group(3)
                     second = int(second_str) if second_str else 0
                     
-                    # Validate: 12-hour format should have hours 1-12
-                    if hour > 12 or hour < 1:
+                    # If hour > 12, treat as 24-hour time with erroneous AM/PM suffix
+                    # Remove the AM/PM suffix and parse as 24-hour time
+                    if hour > 12:
+                        # Remove AM/PM suffix and parse as 24-hour time
+                        time_str_clean = re.sub(r'\s*(AM|PM)', '', time_str, flags=re.IGNORECASE)
+                        time_str = time_str_clean
+                    elif hour < 1:
                         return -1
                     # Validate minutes and seconds
                     if minute > 59 or second > 59:

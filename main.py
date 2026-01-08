@@ -406,6 +406,7 @@ def performAccuracyTest(outputFile, humanQualityFile):
     print(f"Accuracy: {accuracy*100:.2f}%")
     
 if __name__ == "__main__":
+    # print(DataEngining.parseTimeObject('15:20:20PM'))
     computeDataFolderToCSV('./resource/inputData', './output')
     performAccuracyTest('./output/Northampton_Court_House_V43.csv', 
                         './resource/human_quality_control/Norhampton_Court_House.csv')
