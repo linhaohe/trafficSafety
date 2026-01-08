@@ -88,24 +88,36 @@ def computeFeatureScores(row1, row2, timeThreshold):
     return (timeScore * TIME_SCORE_WEIGHT + 
             conditionScore * CONDITION_SCORE_WEIGHT)
 
-def generateReferenceDataFrame(dflist, timeThreshold):
+def generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold):
     """Generate reference DataFrame by matching rows across three dataframes.
     
     Compares:
     - A to B (df0 to df1): finds best match in B for each row in A
     - A to C (df0 to df2): finds best match in C for each row in A
     - B to C (df1 to df2): finds best match in C for each row in B
+    
+    Only considers matches above percentageThreshold. Once a row is matched, 
+    it is marked as visited and cannot be used in future comparisons.
     """
     rows = []
     df0, df1, df2 = dflist[0], dflist[1], dflist[2]
 
+    # Track which rows have been visited/used
+    visited_b = set()  # Rows in df1 (B) that have been matched
+    visited_c = set()  # Rows in df2 (C) that have been matched
+
     # Compare B to C (df1 to df2) - independent comparison for all rows in B
+    # Note: This is done first but rows are only marked as visited when used in A->B->C chain
     bc_matches = {}
     for row1 in df1.itertuples():
         maxScore3, maxIndex3 = -1.0, -1
         for row2 in df2.itertuples():
+            # Skip if row2 is already visited
+            if row2.Index in visited_c:
+                continue
             score = computeFeatureScores(df1.iloc[row1.Index], df2.iloc[row2.Index], timeThreshold)
-            if score > maxScore3:
+            # Only consider if score is above threshold
+            if score >= percentageThreshold and score > maxScore3:
                 maxScore3, maxIndex3 = score, row2.Index
         bc_matches[row1.Index] = {
             "index2_bc": maxIndex3,
@@ -117,23 +129,40 @@ def generateReferenceDataFrame(dflist, timeThreshold):
         maxScore1, maxIndex1 = -1.0, -1
         maxScore2, maxIndex2 = -1.0, -1
 
-        # Compare A to B (df0 to df1)
+        # Compare A to B (df0 to df1) - skip visited rows
         for row1 in df1.itertuples():
+            if row1.Index in visited_b:
+                continue
             score = computeFeatureScores(df0.iloc[row.Index], df1.iloc[row1.Index], timeThreshold)
-            if score > maxScore1:
+            # Only consider if score is above threshold
+            if score >= percentageThreshold and score > maxScore1:
                 maxScore1, maxIndex1 = score, row1.Index
 
-        # Compare A to C (df0 to df2)
+        # Compare A to C (df0 to df2) - skip visited rows
         for row2 in df2.itertuples():
+            if row2.Index in visited_c:
+                continue
             score = computeFeatureScores(df0.iloc[row.Index], df2.iloc[row2.Index], timeThreshold)
-            if score > maxScore2:
+            # Only consider if score is above threshold
+            if score >= percentageThreshold and score > maxScore2:
                 maxScore2, maxIndex2 = score, row2.Index
+
+        # Mark matched rows as visited only if score is above threshold
+        if maxIndex1 != -1 and maxScore1 >= percentageThreshold:
+            visited_b.add(maxIndex1)
+        if maxIndex2 != -1 and maxScore2 >= percentageThreshold:
+            visited_c.add(maxIndex2)
 
         # Get B->C match for the matched row in B
         if maxIndex1 in bc_matches:
             bc_match = bc_matches[maxIndex1]
             index2_bc = bc_match["index2_bc"]
             score3 = bc_match["score3"]
+            
+            # Mark the B->C matched row in C as visited if it's different from A->C match
+            # and score is above threshold
+            if (index2_bc != -1 and index2_bc != maxIndex2 and score3 >= percentageThreshold):
+                visited_c.add(index2_bc)
         else:
             index2_bc = -1
             score3 = -1.0
@@ -207,29 +236,54 @@ def compareParameters(row0, row1, row2, fieldName, accuracy, percentageThreshold
     return ""
 
 def compareTimeDistance(timeA, timeB, timeC, accuracy, timeThreshold):
-    """Compare three time values and return the one with minimum average distance."""
+    """Compare three time values and return the one with minimum average distance.
+    
+    Returns the time value that has the smallest average distance to the other two,
+    but only if at least one pair is within the time threshold.
+    """
+    # Calculate distances between pairs
     distAB = abs(timeA - timeB)
     distAC = abs(timeA - timeC)
     distBC = abs(timeB - timeC)
+    
+    # Check which pairs are within threshold
     matchAB = distAB <= timeThreshold
     matchAC = distAC <= timeThreshold
     matchBC = distBC <= timeThreshold
     
-    if matchAB or matchAC or matchBC:
-        if distAB and distAC  and distBC :
-            # If all are same
-            accuracy.update(3, 0)
-            return timeA
-        else:
-            # If two are same
-            accuracy.update(3, 1)
-            if matchAB:
-                return timeA
-            elif matchAC:
-                return timeC
-            return timeB
+    # Calculate average distances for each time value
+    avgA = (distAB + distAC) / 2
+    avgB = (distAB + distBC) / 2
+    avgC = (distAC + distBC) / 2
     
-    # If all are different
+    # If all three are within threshold of each other
+    if matchAB and matchAC and matchBC:
+        accuracy.update(3, 0)
+        # Return the one with minimum average distance
+        if avgA <= avgB and avgA <= avgC:
+            return timeA
+        elif avgB <= avgA and avgB <= avgC:
+            return timeB
+        else:
+            return timeC
+    
+    # If at least one pair matches
+    if matchAB or matchAC or matchBC:
+        accuracy.update(3, 1)
+        
+        # If A-B match, return the one with smaller average distance
+        if matchAB:
+            return timeA if avgA <= avgB else timeB
+        
+        # If A-C match, return the one with smaller average distance
+        if matchAC:
+            return timeA if avgA <= avgC else timeC
+        
+        # If B-C match, return the one with smaller average distance
+        if matchBC:
+            return timeB if avgB <= avgC else timeC
+    
+    # If all are different (no pairs within threshold)
     accuracy.update(3, 3)
     return -1
 
@@ -405,7 +459,7 @@ def accuracyTest(humanQualityDF, computedQualityDF):
 def computeTrafficData(fileList, accuracy,percentageThreshold,timeThreshold):
     """Compute traffic data from file list and generate quality control DataFrame."""
     dflist = generateDateFrameList(fileList)
-    refDF = generateReferenceDataFrame(dflist, timeThreshold)
+    refDF = generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold)
     dfQualityControl = generateQualityControlDataFrame(refDF, dflist, accuracy,percentageThreshold,timeThreshold)
     dfQualityControl = dfQualityControl.transpose()
     return dfQualityControl, refDF
@@ -450,8 +504,7 @@ def performAccuracyTest(outputFile, humanQualityFile):
     print(f"Accuracy: {accuracy*100:.2f}%")
     
 if __name__ == "__main__":
-    # print(DataEngining.parseTimeObject('15:20:20PM'))
-    computeDataFolderToCSV('./resource/inputData', './output',percentageThreshold=0.65,timeThreshold=10)
+    computeDataFolderToCSV('./resource/inputData', './output',percentageThreshold=0.8,timeThreshold=10)
     performAccuracyTest('./output/Northampton_Court_House_V43.csv', 
                         './resource/human_quality_control/Norhampton_Court_House.csv')
 
