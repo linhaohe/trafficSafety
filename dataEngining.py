@@ -1,54 +1,66 @@
 import pandas as pd
+import re
 from enum import Enum
 
 class DataEngining:
+    """Data engineering class for processing traffic research data."""
 
     # ---------------- ENUM DEFINITIONS ----------------
-    class userType(Enum):
+    class UserType(Enum):
+        """User type enumeration."""
         pedestrian = 0
         bicyclist = 1
         other = -1
 
-    class gender(Enum):
+    class Gender(Enum):
+        """Gender enumeration."""
         male = 0
         female = 1
         other = -1
 
-    class boolean(Enum):
+    class Boolean(Enum):
+        """Boolean enumeration."""
         no = 0
         yes = 1
-        unknow = -1
+        unknown = -1
         other = -1
 
-    class busInteractions(Enum):
+    class BusInteractions(Enum):
+        """Bus interaction type enumeration."""
         boarded = 0
         alighted = 1
         waited = 2
         other = -1
 
-    class walkInteractions(Enum):
+    class WalkInteractions(Enum):
+        """Walking interaction type enumeration."""
         walk = 0
         run = 1
         courtesy = 2
         cyclist = 3
         other = -1
 
-    class crossingLocationRelativeToBus(Enum):
+    class CrossingLocationRelativeToBus(Enum):
+        """Crossing location relative to bus enumeration."""
         front = 0
         behind = 1
         other = -1
-    class crossingLocationRelativeToBusStop(Enum):
+
+    class CrossingLocationRelativeToBusStop(Enum):
+        """Crossing location relative to bus stop enumeration."""
         upstream = 0
         downstream = 1
         other = -1
 
-    class trafficVolume(Enum):
+    class TrafficVolume(Enum):
+        """Traffic volume enumeration."""
         light = 0
         medium = 1
         high = 2
         other = -1
 
-    class clothingColor(Enum):
+    class ClothingColor(Enum):
+        """Clothing color enumeration."""
         orange = 10
         purple = 9
         white = 8
@@ -62,10 +74,22 @@ class DataEngining:
         black = 1
         other = -1
 
+    # Backward compatibility aliases
+    userType = UserType
+    gender = Gender
+    boolean = Boolean
+    busInteractions = BusInteractions
+    walkInteractions = WalkInteractions
+    crossingLocationRelativeToBus = CrossingLocationRelativeToBus
+    crossingLocationRelativeToBusStop = CrossingLocationRelativeToBusStop
+    trafficVolume = TrafficVolume
+    clothingColor = ClothingColor
+
     # ---------------- HELPER FUNCTIONS ----------------
     @staticmethod
-    def load_csv(filePath):
-        df = pd.read_csv(filePath, header=None).transpose()
+    def load_csv(file_path):
+        """Load and transpose CSV file, setting first row as column headers."""
+        df = pd.read_csv(file_path, header=None).transpose()
         df.columns = df.iloc[0]
         df = df.iloc[1:]
         df = df.loc[:, ~df.columns.duplicated()]
@@ -75,6 +99,7 @@ class DataEngining:
 
     @staticmethod
     def normalize_string(x):
+        """Normalize string values: strip, lowercase, and replace common variations."""
         if not isinstance(x, str):
             return x
         x = x.strip().lower().replace("  ", " ")
@@ -84,56 +109,105 @@ class DataEngining:
         return x
 
     @staticmethod
-    def parseEnum(value, enumType):
+    def parseEnum(value, enum_type):
+        """Parse a value into an enum type, returning the enum value or -1 for other/unknown."""
         if pd.isna(value):
             return -1
         key = DataEngining.normalize_string(value).replace(" ", "")
-        for name, member in enumType.__members__.items():
+        for name, member in enum_type.__members__.items():
             if name.lower() == key:
                 return member.value
-        return enumType.other.value
+        return enum_type.other.value
 
     @staticmethod
-    def parseTimeObject(pdTimeStamp):
-        if pd.isna(pdTimeStamp):
+    def parseTimeObject(pd_timestamp):
+        """Parse pandas timestamp to seconds since midnight.
+        
+        Validates time format and catches invalid inputs like:
+        - "15:00:32 PM" (24-hour format with AM/PM suffix - hour > 12 is invalid)
+        - Hours > 23, minutes > 59, seconds > 59
+        """
+        if pd.isna(pd_timestamp):
             return -1
+        
         try:
-            t = pd.to_datetime(str(pdTimeStamp).strip(), errors='coerce')
+            time_str = str(pd_timestamp).strip()
+            time_upper = time_str.upper()
+            has_am_pm = 'AM' in time_upper or 'PM' in time_upper
+            
+            # Check for invalid 24-hour format with AM/PM suffix
+            # Example: "15:00:32 PM" is invalid (hour 15 with PM doesn't make sense)
+            if has_am_pm:
+                # Pattern: HH:MM:SS AM/PM or HH:MM AM/PM
+                time_match = re.match(r'(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)', time_upper)
+                if time_match:
+                    hour = int(time_match.group(1))
+                    minute = int(time_match.group(2))
+                    second_str = time_match.group(3)
+                    second = int(second_str) if second_str else 0
+                    
+                    # Validate: 12-hour format should have hours 1-12
+                    if hour > 12 or hour < 1:
+                        return -1
+                    # Validate minutes and seconds
+                    if minute > 59 or second > 59:
+                        return -1
+            
+            # Try to parse with pandas
+            t = pd.to_datetime(time_str, errors='coerce')
             if pd.isna(t):
                 return -1
-            return t.hour * 3600 + t.minute * 60 + t.second
-        except:
+            
+            # Validate parsed time components
+            hour = t.hour
+            minute = t.minute
+            second = t.second
+            
+            # Check for invalid time components (24-hour format)
+            if hour > 23 or minute > 59 or second > 59:
+                return -1
+            
+            return hour * 3600 + minute * 60 + second
+            
+        except (ValueError, TypeError, AttributeError):
             return -1
 
 
     # ---------------- MAIN ROW PROCESSOR ----------------
     @staticmethod
     def dataEnginingRow(row):
+        """Process a single row of data, normalizing and converting to appropriate types."""
         row = row.copy()
-
         row = row.apply(DataEngining.normalize_string)
 
         def get(col):
+            """Helper to safely get column value."""
             return row[col] if col in row else None
 
+        # Parse Group Size
         try:
             row['Group Size'] = int(get('Group Size'))
-        except:
+        except (ValueError, TypeError):
             row['Group Size'] = -1
 
+        # Parse enum fields
         row['User Type'] = DataEngining.parseEnum(get('User Type'), DataEngining.userType)
         row['Estimated Gender'] = DataEngining.parseEnum(get('Estimated Gender'), DataEngining.gender)
-        row['Estimated Visible Distrction'] = DataEngining.parseEnum(get('Estimated Visible Distrction'), DataEngining.boolean)
+        row['Estimated Visible Distrction'] = DataEngining.parseEnum(
+            get('Estimated Visible Distrction'), DataEngining.boolean
+        )
         row['Bus Interaction'] = DataEngining.parseEnum(get('Bus Interaction'), DataEngining.boolean)
         row['Roadway Crossing'] = DataEngining.parseEnum(get('Roadway Crossing'), DataEngining.boolean)
         row['Clothing Color'] = DataEngining.parseEnum(get('Clothing Color'), DataEngining.clothingColor)
 
+        # Special handling for Type of Bus Interaction
         tbi = get('Type of Bus Interaction')
         if tbi == 'waited at bus stop':
             row['Type of Bus Interaction'] = DataEngining.busInteractions.waited.value
         else:
             row['Type of Bus Interaction'] = DataEngining.parseEnum(tbi, DataEngining.busInteractions)
 
+        # Parse time fields
         time_cols = [
             'Bus Stop Arrival Time', 'Bus Stop Departure Time',
             'Intend to Cross Timestamp', 'Crossing Start Time',
@@ -145,11 +219,17 @@ class DataEngining:
             sec = DataEngining.parseTimeObject(get(col))
             row[col] = sec
 
+        # Parse boolean enum fields
         row['Crosswalk Crossing?'] = DataEngining.parseEnum(get('Crosswalk Crossing?'), DataEngining.boolean)
         row['Refuge Island'] = DataEngining.parseEnum(get('Refuge Island'), DataEngining.boolean)
-        row['Pedestrian Phase Crossing?'] = DataEngining.parseEnum(get('Pedestrian Phase Crossing?'), DataEngining.boolean)
-        row['Did User Finish Crossing During Pedestrian Phase?'] = DataEngining.parseEnum(get('Did User Finish Crossing During Pedestrian Phase?'), DataEngining.boolean)
+        row['Pedestrian Phase Crossing?'] = DataEngining.parseEnum(
+            get('Pedestrian Phase Crossing?'), DataEngining.boolean
+        )
+        row['Did User Finish Crossing During Pedestrian Phase?'] = DataEngining.parseEnum(
+            get('Did User Finish Crossing During Pedestrian Phase?'), DataEngining.boolean
+        )
 
+        # Special handling for Crossing Interaction Notes
         cin = get('Crossing Interaction Notes')
         if cin == 'courtesy run':
             row['Crossing Interaction Notes'] = DataEngining.walkInteractions.courtesy.value
@@ -158,11 +238,14 @@ class DataEngining:
 
         row['Bus Presence'] = DataEngining.parseEnum(get('Bus Presence'), DataEngining.boolean)
 
+        # Special handling for Crossing Location Relative to Bus
         loc = get('Crossing Location Relative to Bus')
         if loc == 'in front':
             row['Crossing Location Relative to Bus'] = DataEngining.crossingLocationRelativeToBus.front.value
         else:
-            row['Crossing Location Relative to Bus'] = DataEngining.parseEnum(get('Crossing Location Relative to Bus'), DataEngining.crossingLocationRelativeToBus)
+            row['Crossing Location Relative to Bus'] = DataEngining.parseEnum(
+                get('Crossing Location Relative to Bus'), DataEngining.crossingLocationRelativeToBus
+            )
 
         row['Crossing Location Relative to Bus Stop'] = DataEngining.parseEnum(
             get('Crossing Location Relative to Bus Stop'),
@@ -174,37 +257,50 @@ class DataEngining:
         return row
 
 
-int_cols = [
-    'Group Size','User Type','Estimated Gender','Estimated Visible Distrction',
-    'Bus Interaction','Roadway Crossing','Type of Bus Interaction','Refuge Island',
-    'Crosswalk Crossing?','Pedestrian Phase Crossing?',
+# Column type definitions
+INT_COLS = [
+    'Group Size', 'User Type', 'Estimated Gender', 'Estimated Visible Distrction',
+    'Bus Interaction', 'Roadway Crossing', 'Type of Bus Interaction', 'Refuge Island',
+    'Crosswalk Crossing?', 'Pedestrian Phase Crossing?',
     'Did User Finish Crossing During Pedestrian Phase?',
-    'Crossing Interaction Notes','Bus Presence',
-    'Crossing Location Relative to Bus','Vehicle Traffic',
+    'Crossing Interaction Notes', 'Bus Presence',
+    'Crossing Location Relative to Bus', 'Vehicle Traffic',
     'Clothing Color'
 ]
-float_cols = [
-    'Bus Stop Arrival Time','Bus Stop Departure Time','Intend to Cross Timestamp',
-    'Crossing Start Time','Refuge Island Start Time','Refuge Island End Time',
+
+FLOAT_COLS = [
+    'Bus Stop Arrival Time', 'Bus Stop Departure Time', 'Intend to Cross Timestamp',
+    'Crossing Start Time', 'Refuge Island Start Time', 'Refuge Island End Time',
     'Crossing End Time',
 ]
 
-dtypeMapping = {
-    **{col: "Int64" for col in int_cols},
-    **{col: "float64" for col in float_cols}
+# Backward compatibility
+int_cols = INT_COLS
+float_cols = FLOAT_COLS
+
+DTYPE_MAPPING = {
+    **{col: "Int64" for col in INT_COLS},
+    **{col: "float64" for col in FLOAT_COLS}
 }
 
-def generateDateFrameList(pathUrls):
-    dfList = []
-    for path in pathUrls:
-        loadDf = DataEngining.load_csv(path)
-        loadDf = loadDf.apply(DataEngining.dataEnginingRow, axis=1)
-        loadDf = loadDf.astype(dtypeMapping)
-        dfList.append(loadDf)
-    return dfList
+# Backward compatibility
+dtypeMapping = DTYPE_MAPPING
 
-def generateDateFrame(pathUrl):
-    df = DataEngining.load_csv(pathUrl)
+
+def generateDateFrameList(path_urls):
+    """Generate a list of DataFrames from a list of file paths."""
+    df_list = []
+    for path in path_urls:
+        load_df = DataEngining.load_csv(path)
+        load_df = load_df.apply(DataEngining.dataEnginingRow, axis=1)
+        load_df = load_df.astype(DTYPE_MAPPING)
+        df_list.append(load_df)
+    return df_list
+
+
+def generateDateFrame(path_url):
+    """Generate a single DataFrame from a file path."""
+    df = DataEngining.load_csv(path_url)
     df = df.apply(DataEngining.dataEnginingRow, axis=1)
-    df = df.astype(dtypeMapping)
+    df = df.astype(DTYPE_MAPPING)
     return df
