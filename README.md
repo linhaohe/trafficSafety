@@ -7,7 +7,6 @@ A Python package for analyzing traffic research data, including data processing,
 ```
 ./
 ├── config.py                    # Configuration constants
-├── dataEngining.py              # Data engineering utilities
 ├── main.py                      # Main entry point
 ├── requirements.txt             # Python dependencies
 └── traffic_research/            # Main package
@@ -16,7 +15,8 @@ A Python package for analyzing traffic research data, including data processing,
     │   ├── models.py           # Data models (AccuracyScore)
     │   ├── scoring.py          # Scoring functions
     │   ├── matching.py         # Matching and comparison functions
-    │   └── utils.py            # Utility functions
+    │   ├── utils.py            # Utility functions
+    │   └── data_engineering.py # Data engineering utilities
     ├── processing/              # Data processing
     │   ├── data_processing.py  # Data processing functions
     │   └── quality_control.py # Quality control functions

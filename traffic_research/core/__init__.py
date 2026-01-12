@@ -14,6 +14,14 @@ from .matching import (
     compareTimeDistance
 )
 from .utils import secondsToTimeString, enumToString
+from .data_engineering import (
+    DataEngining,
+    generateDateFrameList,
+    generateDateFrame,
+    float_cols,
+    INT_COLS,
+    FLOAT_COLS
+)
 
 __all__ = [
     'AccuracyScore',
@@ -26,5 +34,11 @@ __all__ = [
     'compareParameters',
     'compareTimeDistance',
     'secondsToTimeString',
-    'enumToString'
+    'enumToString',
+    'DataEngining',
+    'generateDateFrameList',
+    'generateDateFrame',
+    'float_cols',
+    'INT_COLS',
+    'FLOAT_COLS'
 ]

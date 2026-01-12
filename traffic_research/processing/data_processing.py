@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-from dataEngining import generateDateFrameList, generateDateFrame
+from traffic_research.core.data_engineering import generateDateFrameList, generateDateFrame
 from traffic_research.core.matching import generateReferenceDataFrame
 from traffic_research.processing.quality_control import generateQualityControlDataFrame, accuracyTest
 from traffic_research.core.models import AccuracyScore

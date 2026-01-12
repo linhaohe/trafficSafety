@@ -1,9 +1,6 @@
 """Utility functions for data conversion and formatting."""
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-from dataEngining import DataEngining
+from .data_engineering import DataEngining
 
 
 def secondsToTimeString(seconds):
