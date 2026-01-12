@@ -1,9 +1,12 @@
 """Quality control functions for generating and testing data quality."""
 
 import pandas as pd
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from dataEngining import DataEngining, float_cols
-from matching import compareParameters, compareTimeDistance
-from utils import enumToString, secondsToTimeString
+from traffic_research.core.matching import compareParameters, compareTimeDistance
+from traffic_research.core.utils import enumToString, secondsToTimeString
 from config import EXCLUDED_FROM_ACCURACY, DEFAULT_TIME_THRESHOLD
 
 

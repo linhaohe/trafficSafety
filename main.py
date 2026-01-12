@@ -5,8 +5,8 @@ from config import (
     NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC,
     BELMONT_OUTPUT, BELMONT_HUMAN_QC
 )
-from data_processing import computeDataFolderToCSV, performAccuracyTest
-from graphing import generateGraphDataPercentage, generateGraphDataTime, graphData
+from traffic_research.processing.data_processing import computeDataFolderToCSV, performAccuracyTest
+from traffic_research.graphing.graphing import generateGraphDataPercentage, generateGraphDataTime, graphData
 
 
 if __name__ == "__main__":
@@ -15,9 +15,9 @@ if __name__ == "__main__":
     # generateGraphDataTime(start_time=1, end_time=20, percentage_threshold=0.64)
 
     # Uncomment to generate graphs from existing data
-    graphData()
+    # graphData()
     
     # Uncomment to run single computation and accuracy tests
-    # computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.64, timeThreshold=7)
-    # performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
-    # performAccuracyTest(BELMONT_OUTPUT, BELMONT_HUMAN_QC)
+    computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.64, timeThreshold=7)
+    performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
+    performAccuracyTest(BELMONT_OUTPUT, BELMONT_HUMAN_QC)

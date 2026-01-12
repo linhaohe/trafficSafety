@@ -2,11 +2,13 @@
 
 import os
 import pandas as pd
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from config import (
     ACCURACY_SUMMARY_DIR, NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC, 
     BELMONT_OUTPUT, BELMONT_HUMAN_QC, INPUT_DATA_PATH, OUTPUT_PATH
 )
-from data_processing import computeDataFolderToCSVWithIndex, performAccuracyTest
+from traffic_research.processing.data_processing import computeDataFolderToCSVWithIndex, performAccuracyTest
 
 
 def _generateGraphDataHelper(

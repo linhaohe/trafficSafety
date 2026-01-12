@@ -1,6 +1,9 @@
 """Scoring functions for row comparison."""
 
 import math
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from config import TIME_SCORE_WEIGHT, CONDITION_SCORE_WEIGHT, DEFAULT_TIME_THRESHOLD_WEIGHT
 
 

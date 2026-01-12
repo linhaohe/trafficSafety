@@ -1,7 +1,10 @@
 """Functions for matching and comparing rows across dataframes."""
 
 import pandas as pd
-from scoring import computeFeatureScores
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+from .scoring import computeFeatureScores
 from config import EXCLUDED_FROM_ACCURACY
 
 
