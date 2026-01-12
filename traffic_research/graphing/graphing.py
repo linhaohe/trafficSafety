@@ -168,7 +168,7 @@ def graphData():
         df1, df2 = _loadIteratedAccuracyData(1, 101, 'accuracy_summary_percentage_{}.csv', 'Percentage Threshold', 0.01)
         _plotAccuracyComparison(
             df1, df2, 'Percentage Threshold',
-            "Consistency test of percentage threshold, t = 5s",
+            "Consistency test of percentage threshold, t = 6s",
             "Percentage Threshold(%)",
             "Iterated Accuracy(%)",
             os.path.join(ACCURACY_SUMMARY_DIR, 'accuracy_summary_percentage_threshold.png')
@@ -180,7 +180,7 @@ def graphData():
         df2 = pd.read_csv(os.path.join(ACCURACY_SUMMARY_DIR, 'accuracy_summary_percentage_Belmont_St+Edward_St.csv'))
         _plotAccuracyComparison(
             df1, df2, 'Percentage Threshold',
-            "Accuracy test of percentage threshold vs human accuracy, t = 5s",
+            "Accuracy test of percentage threshold vs human accuracy, t = 6s",
             "Percentage Threshold(%)",
             "Similarity(%)",
             os.path.join(ACCURACY_SUMMARY_DIR, 'accuracy_summary_percentage_threshold_vs_human_accuracy.png')

@@ -11,13 +11,13 @@ from traffic_research.graphing.graphing import generateGraphDataPercentage, gene
 
 if __name__ == "__main__":
     # Generate graph data for testing different percentage thresholds
-    # generateGraphDataPercentage(start_percent=1, end_percent=101, time_threshold=5)
-    generateGraphDataTime(start_time=1, end_time=20, percentage_threshold=0.6)
+    # generateGraphDataPercentage(start_percent=1, end_percent=101, time_threshold=6)
+    # generateGraphDataTime(start_time=1, end_time=20, percentage_threshold=0.6)
 
     # Uncomment to generate graphs from existing data
-    graphData()
+    # graphData()
     
     # Uncomment to run single computation and accuracy tests
-    # computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.64, timeThreshold=7)
-    # performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
-    # performAccuracyTest(BELMONT_OUTPUT, BELMONT_HUMAN_QC)
+    computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
+    performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
+    performAccuracyTest(BELMONT_OUTPUT, BELMONT_HUMAN_QC)

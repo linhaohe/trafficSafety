@@ -54,7 +54,7 @@ def computeDataFolderToCSV(resourceFolderPath, outputFolderPath, percentageThres
             _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, timeThreshold)
     
     accuracyDF = pd.DataFrame(accuracy.getFilesAccuracy(), columns=['Location', 'Accuracy'])
-    accuracyDF.to_csv(os.path.join(outputFolderPath, 'accuracy_summary.csv'), header=True)
+    accuracyDF.to_csv(os.path.join(outputFolderPath, 'interated_summary.csv'), header=True)
 
 
 def computeDataFolderToCSVWithIndex(resourceFolderPath, outputFolderPath, percentageThreshold, timeThreshold, threshold_name, index):
