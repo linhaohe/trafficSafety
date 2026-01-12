@@ -168,7 +168,7 @@ def graphData():
         df1, df2 = _loadIteratedAccuracyData(1, 101, 'accuracy_summary_percentage_{}.csv', 'Percentage Threshold', 0.01)
         _plotAccuracyComparison(
             df1, df2, 'Percentage Threshold',
-            "Consistency test of percentage threshold, t = 3s",
+            "Consistency test of percentage threshold, t = 5s",
             "Percentage Threshold(%)",
             "Iterated Accuracy(%)",
             os.path.join(ACCURACY_SUMMARY_DIR, 'accuracy_summary_percentage_threshold.png')
@@ -180,7 +180,7 @@ def graphData():
         df2 = pd.read_csv(os.path.join(ACCURACY_SUMMARY_DIR, 'accuracy_summary_percentage_Belmont_St+Edward_St.csv'))
         _plotAccuracyComparison(
             df1, df2, 'Percentage Threshold',
-            "Accuracy test of percentage threshold vs human accuracy, t = 3s",
+            "Accuracy test of percentage threshold vs human accuracy, t = 5s",
             "Percentage Threshold(%)",
             "Similarity(%)",
             os.path.join(ACCURACY_SUMMARY_DIR, 'accuracy_summary_percentage_threshold_vs_human_accuracy.png')
@@ -210,7 +210,7 @@ def graphData():
         df2 = pd.DataFrame(rows2)
         _plotAccuracyComparison(
             df1, df2, 'Time Threshold',
-            "Consistency test of time threshold, % = 0.64",
+            "Consistency test of time threshold, % = 0.6",
             "Time Threshold(seconds)",
             "Iterated Accuracy(%)",
             os.path.join(ACCURACY_SUMMARY_DIR, 'accuracy_time_summary_time_threshold.png')
@@ -222,7 +222,7 @@ def graphData():
         df2 = pd.read_csv(os.path.join(ACCURACY_SUMMARY_DIR, 'accuracy_summary_time_Belmont_St+Edward_St.csv'))
         _plotAccuracyComparison(
             df1, df2, 'Time Threshold',
-            "Accuracy test of time threshold vs human accuracy, % = 0.64",
+            "Accuracy test of time threshold vs human accuracy, % = 0.6",
             "Time Threshold(seconds)",
             "Similarity(%)",
             os.path.join(ACCURACY_SUMMARY_DIR, 'accuracy_time_summary_time_threshold_vs_human_accuracy.png')

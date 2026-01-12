@@ -1,6 +1,7 @@
 """Scoring functions for row comparison."""
 
 import math
+import pandas as pd
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
@@ -9,6 +10,12 @@ from config import TIME_SCORE_WEIGHT, CONDITION_SCORE_WEIGHT, DEFAULT_TIME_THRES
 
 def calculateNumericScore(num1, num2, threshold):
     """Calculate numeric similarity score using exponential decay."""
+    if threshold <= 0:
+        # Avoid division by zero, return 0 if threshold is invalid
+        return 0.0
+    if pd.isna(num1) or pd.isna(num2):
+        # Handle NaN values
+        return 0.0
     return math.exp(-abs(num1 - num2) / threshold)
 
 

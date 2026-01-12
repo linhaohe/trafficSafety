@@ -106,53 +106,72 @@ def generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold):
 def compareParameters(row0, row1, row2, fieldName, accuracy, percentageThreshold):
     """Compare three parameter values and update accuracy tracking.
     
-    Uses similarity scores to determine if values match:
-    - scoreAB: similarity score between A and B
-    - scoreAC: similarity score between A and C
-    - scoreBC: similarity score between B and C
+    Compares values from three reviewers (A, B, C) and determines the consensus value
+    based on matching pairs and similarity scores.
     
-    Returns the agreed value if at least two match (with scores above threshold), 
-    None otherwise.
-    
-    Note: Certain parameters are excluded from accuracy tracking.
+    Args:
+        row0: Dictionary with 'row' (A's data) and 'score' [A->B, A->C]
+        row1: Dictionary with 'row' (B's data) and 'score' [B->A, B->C]
+        row2: Dictionary with 'row' (C's data) and 'score' [C->A, C->B]
+        fieldName: Name of the field to compare
+        accuracy: AccuracyScore object to update
+        percentageThreshold: Minimum similarity score for a match
+        
+    Returns:
+        The consensus value if matches found, empty string otherwise.
+        
+    Note:
+        Certain parameters are excluded from accuracy tracking.
     """
-    A = row0['row'][fieldName]
-    B = row1['row'][fieldName]
-    C = row2['row'][fieldName]
+    value_a = row0['row'][fieldName]
+    value_b = row1['row'][fieldName]
+    value_c = row2['row'][fieldName]
     
     # Extract similarity scores
-    scoreAB = row0['score'][0]  # A to B score
-    scoreAC = row0['score'][1]  # A to C score
-    scoreBC = row1['score'][1]  # B to C score
+    score_ab = row0['score'][0]  # A to B similarity score
+    score_ac = row0['score'][1]  # A to C similarity score
+    score_bc = row1['score'][1]  # B to C similarity score
     
-    # Check if values match
-    ab_match = (A == B) and (scoreAB >= percentageThreshold)
-    ac_match = (A == C) and (scoreAC >= percentageThreshold)
-    bc_match = (B == C) and (scoreBC >= percentageThreshold)
+    # Check which pairs match (both value and score must match)
+    ab_matches = (value_a == value_b) and (score_ab >= percentageThreshold)
+    ac_matches = (value_a == value_c) and (score_ac >= percentageThreshold)
+    bc_matches = (value_b == value_c) and (score_bc >= percentageThreshold)
     
-    # Count how many pairs match
-    match_count = sum([ab_match, ac_match, bc_match])
-    
-    # Check if this parameter should be excluded from accuracy tracking
+    match_count = sum([ab_matches, ac_matches, bc_matches])
     should_track_accuracy = fieldName not in EXCLUDED_FROM_ACCURACY
     
-    # If all three match with scores above threshold
+    # All three agree
     if match_count == 3:
         if should_track_accuracy:
             accuracy.update(3, 0)
-        return A
+        return value_a
     
-    # If at least one pair match
+    # At least one pair matches - determine consensus
     if match_count >= 1:
         if should_track_accuracy:
             accuracy.update(3, 1)
-        if ab_match or ac_match:
-            return A
-        elif ab_match or bc_match:
-            return B
-        return C
+        
+        # A matches both B and C -> A is consensus
+        if ab_matches and ac_matches:
+            return value_a
+        
+        # A matches B, and B matches C -> A is consensus (through B)
+        if ab_matches and bc_matches:
+            return value_a
+        
+        # A matches C, and B matches C -> C is consensus
+        if ac_matches and bc_matches:
+            return value_c
+        
+        # Only one pair matches
+        if ab_matches:
+            return value_a
+        if ac_matches:
+            return value_a
+        if bc_matches:
+            return value_b  # B is middle value when only B and C match
     
-    # If all are different or insufficient matches
+    # No matches found
     if should_track_accuracy:
         accuracy.update(3, 3)
     return ""
@@ -164,6 +183,17 @@ def compareTimeDistance(timeA, timeB, timeC, accuracy, timeThreshold):
     Returns the time value that has the smallest average distance to the other two,
     but only if at least one pair is within the time threshold.
     """
+    # Handle invalid time values (-1 indicates invalid/missing)
+    if timeA == -1 and timeB == -1 and timeC == -1:
+        accuracy.update(3, 3)
+        return -1
+    if timeA == -1:
+        timeA = timeB if timeB != -1 else timeC
+    if timeB == -1:
+        timeB = timeA if timeA != -1 else timeC
+    if timeC == -1:
+        timeC = timeA if timeA != -1 else timeB
+    
     # Calculate distances between pairs
     distAB = abs(timeA - timeB)
     distAC = abs(timeA - timeC)

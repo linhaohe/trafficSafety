@@ -110,13 +110,21 @@ def generateQualityControlDataFrame(refDF, dflist, accuracy, percentageThreshold
             "score": [index.score1, index.score2]
         }
         # B to A and B to C
+        index1 = int(refDF.iloc[index.Index].index1)
+        if index1 == -1 or index1 >= len(df1):
+            # No match found or invalid index, use first row as fallback (will be handled in comparison)
+            index1 = 0 if len(df1) > 0 else -1
         row1 = {
-            "row": df1.iloc[int(refDF.iloc[index.Index].index1)],
+            "row": df1.iloc[index1] if index1 != -1 else df0.iloc[index.Index],  # Fallback to row0 if no match
             "score": [index.score1, index.score3]
         }
         # C to A and C to B
+        index2 = int(refDF.iloc[index.Index].index2)
+        if index2 == -1 or index2 >= len(df2):
+            # No match found or invalid index, use first row as fallback (will be handled in comparison)
+            index2 = 0 if len(df2) > 0 else -1
         row2 = {
-            "row": df2.iloc[int(refDF.iloc[index.Index].index2)],
+            "row": df2.iloc[index2] if index2 != -1 else df0.iloc[index.Index],  # Fallback to row0 if no match
             "score": [index.score2, index.score3]
         }
         rows.append(constructRowDict(row0, row1, row2, index.Index, accuracy, percentageThreshold, timeThreshold))
