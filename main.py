@@ -41,9 +41,10 @@ def calculateConditionScore(condition1, condition2):
     return 1.0 if condition1 == condition2 else 0.0
 
 # Scoring weights
-TIME_SCORE_WEIGHT = 0.0714
+OVERALL_TIME_SCORE_WEIGHT = 0.55
+TIME_SCORE_WEIGHT = OVERALL_TIME_SCORE_WEIGHT/7
 DEFAULT_TIME_THRESHOLD_Weight = 10
-CONDITION_SCORE_WEIGHT = 0.05556
+CONDITION_SCORE_WEIGHT = (1-OVERALL_TIME_SCORE_WEIGHT)/10
 DEFAULT_PERCENTAGE_THRESHOLD = 0.8
 DEFAULT_TIME_THRESHOLD = 3
 
@@ -68,6 +69,7 @@ def computeConditionScore(row1, row2):
     condition_fields = [
         'User Type',
         'Estimated Gender',
+        'Estimated Age Group',
         'Bus Interaction',
         'Roadway Crossing',
         'Type of Bus Interaction',
@@ -302,7 +304,20 @@ def enumToString(enumVal, enumList):
     if enumVal is None or enumVal == -1:
         return ""
     try:
-        return enumList(enumVal).name
+        # Special handling for AgeGroup to return readable format
+        if enumList == DataEngining.ageGroup or enumList == DataEngining.AgeGroup:
+            age_mapping = {
+                0: "0-20",   # age_0_20
+                1: "21-35",  # age_21_35
+                2: "36-50",  # age_36_50
+                3: ">50",    # age_50_plus
+                -1: ""       # other
+            }
+            return age_mapping.get(enumVal, "")
+        
+        # Standard enum conversion
+        enum_member = enumList(enumVal)
+        return enum_member.name
     except:
         return ""
     
@@ -328,7 +343,7 @@ def constructRowDict(row0, row1, row2, index, accuracy,percentageThreshold,timeT
     userType = enumToStr('User Type', DataEngining.userType)
     groupSize = compare('Group Size')
     estimatedGender = enumToStr('Estimated Gender', DataEngining.gender)
-    estimatedAgeGroup = compare('Estimated Age Group')
+    estimatedAgeGroup = enumToStr('Estimated Age Group',DataEngining.ageGroup)
     clothingColor = enumToStr('Clothing Color', DataEngining.clothingColor)
     visibilityScale = compare('Visibility Scale')
     estimatedVisibleDistraction = enumToStr('Estimated Visible Distrction', DataEngining.boolean)
@@ -502,9 +517,122 @@ def performAccuracyTest(outputFile, humanQualityFile):
     dfHuman = generateDateFrame(humanQualityFile).dropna(how='all')
     accuracy = accuracyTest(dfHuman, dfCompute)
     print(f"Accuracy: {accuracy*100:.2f}%")
-    
-if __name__ == "__main__":
-    computeDataFolderToCSV('./resource/inputData', './output',percentageThreshold=0.8,timeThreshold=10)
-    performAccuracyTest('./output/Northampton_Court_House_V43.csv', 
-                        './resource/human_quality_control/Norhampton_Court_House.csv')
+    return accuracy
 
+def generateGraphData():
+    AccuracyTestRows1 = []
+    AccuracyTestRows2 = []
+    for i in range(1, 21):
+        computeDataFolderToCSV('./resource/inputData', './output',percentageThreshold=0.64,timeThreshold=i,index=i)
+        accuracy1 = performAccuracyTest('./output/Northampton_Court_House_V43.csv', 
+                                './resource/human_quality_control/Norhampton_Court_House.csv')
+        accuracy2 = performAccuracyTest('./output/Belmont+Edward_St_V38.csv', 
+                                './resource/human_quality_control/Belmont_St+Edward_St.csv')
+        AccuracyTestRows1.append({
+            'Percentage Threshold': 0.64,
+            'Time Threshold': i,
+            'Data Set': 'Northampton_Court_House',
+            'Accuracy': accuracy1
+        })
+        AccuracyTestRows2.append({
+            'Percentage Threshold': 0.64,
+            'Time Threshold': i,
+            'Data Set': 'Belmont_St+Edward_St',
+            'Accuracy': accuracy2
+        })
+    pd.DataFrame(AccuracyTestRows1).to_csv(
+        os.path.join(os.path.join('./output', 'accuracy_time_summary'), 'accuracy_summary_time_Northampton_Court_House.csv'),
+        header=True
+    )
+    pd.DataFrame(AccuracyTestRows2).to_csv(
+        os.path.join(os.path.join('./output', 'accuracy_time_summary'), 'accuracy_summary_time_Belmont_St+Edward_St.csv'),
+        header=True
+    )
+
+def graphData():
+    import matplotlib.pyplot as plt
+    def graphIteratedAccuracyPercentageThreshold():
+        AccuracyTestRows1 = []
+        AccuracyTestRows2 = []
+        for i in range(1, 101):
+            dfdata = pd.read_csv(os.path.join(os.path.join('./output', 'accuracy_summary'), 'accuracy_summary_'+str(i)+'%.csv'))
+            dfdata = dfdata.dropna(how='all')
+            AccuracyTestRows1.append({
+                'Data Set': 'Northampton_Court_House',
+                'Accuracy': dfdata.iloc[0]['Accuracy'],
+                'Percentage Threshold': i*0.01
+            })
+            AccuracyTestRows2.append({
+                'Data Set': 'Belmont_St+Edward_St',
+                'Accuracy': dfdata.iloc[1]['Accuracy'],
+                'Percentage Threshold': i*0.01
+            })
+        dfAccuracyTest1 = pd.DataFrame(AccuracyTestRows1)
+        dfAccuracyTest2 = pd.DataFrame(AccuracyTestRows2)
+        plt.plot(dfAccuracyTest1['Percentage Threshold'], dfAccuracyTest1['Accuracy'], label='Northampton_Court_House')
+        plt.plot(dfAccuracyTest2['Percentage Threshold'], dfAccuracyTest2['Accuracy'], label='Belmont_St+Edward_St')
+        plt.legend()
+        plt.title("consistency test of percentage threshold, t = 3s")
+        plt.xlabel("Percentage Threshold(%)")
+        plt.ylabel("Interated Accuracy(%)")
+        plt.savefig(os.path.join(os.path.join('./output', 'accuracy_summary'), 'accuracy_summary_percentage_threshold.png'))
+        plt.clf()
+    def graphPercentageThresholdVsHumanAccuracy():
+        dfAccuracyTest1 = pd.read_csv(os.path.join(os.path.join('./output', 'accuracy_summary'), 'accuracy_summary_test_Northampton_Court_House.csv'))
+        dfAccuracyTest2 = pd.read_csv(os.path.join(os.path.join('./output', 'accuracy_summary'), 'accuracy_summary_test_Belmont_St+Edward_St.csv'))
+        plt.plot(dfAccuracyTest1['Percentage Threshold'], dfAccuracyTest1['Accuracy'], label='Northampton_Court_House')
+        plt.plot(dfAccuracyTest2['Percentage Threshold'], dfAccuracyTest2['Accuracy'], label='Belmont_St+Edward_St')
+        plt.legend()
+        plt.title("accuracy test of percentage threshold vs human accuracy, t = 3s")
+        plt.xlabel("Percentage Threshold(%)")
+        plt.ylabel("Similarity(%)")
+        plt.savefig(os.path.join(os.path.join('./output', 'accuracy_summary'), 'accuracy_summary_percentage_threshold_vs_human_accuracy.png'))
+        plt.clf()
+    def graphIteratedAccuracyTimeThreshold():
+        AccuracyTestRows1 = []
+        AccuracyTestRows2 = []
+        for i in range(1, 20):
+            dfdata = pd.read_csv(os.path.join(os.path.join('./output', 'accuracy_time_summary'), 'accuracy_time_summary_'+str(i)+'s.csv'))
+            dfdata = dfdata.dropna(how='all')
+            AccuracyTestRows1.append({
+                'Data Set': 'Northampton_Court_House',
+                'Accuracy': dfdata.iloc[0]['Accuracy'],
+                'Time Threshold': i
+            })
+            AccuracyTestRows2.append({
+                'Data Set': 'Belmont_St+Edward_St',
+                'Accuracy': dfdata.iloc[1]['Accuracy'],
+                'Time Threshold': i
+            })
+        dfAccuracyTest1 = pd.DataFrame(AccuracyTestRows1)
+        dfAccuracyTest2 = pd.DataFrame(AccuracyTestRows2)
+        plt.plot(dfAccuracyTest1['Time Threshold'], dfAccuracyTest1['Accuracy'], label='Northampton_Court_House')
+        plt.plot(dfAccuracyTest2['Time Threshold'], dfAccuracyTest2['Accuracy'], label='Belmont_St+Edward_St')
+        plt.legend()
+        plt.title("consistency test of time threshold, % = 0.64")
+        plt.xlabel("Time Threshold(seconds)")
+        plt.ylabel("Interated Accuracy(%)")
+        plt.savefig(os.path.join(os.path.join('./output', 'accuracy_time_summary'), 'accuracy_time_summary_time_threshold.png'))
+        plt.clf()
+    def graphTimeThresholdVsHumanAccuracy():
+        dfAccuracyTest1 = pd.read_csv(os.path.join(os.path.join('./output', 'accuracy_time_summary'), 'accuracy_summary_time_Northampton_Court_House.csv'))
+        dfAccuracyTest2 = pd.read_csv(os.path.join(os.path.join('./output', 'accuracy_time_summary'), 'accuracy_summary_time_Belmont_St+Edward_St.csv'))
+        plt.plot(dfAccuracyTest1['Time Threshold'], dfAccuracyTest1['Accuracy'], label='Northampton_Court_House')
+        plt.plot(dfAccuracyTest2['Time Threshold'], dfAccuracyTest2['Accuracy'], label='Belmont_St+Edward_St')
+        plt.legend()
+        plt.title("accuracy test of time threshold vs human accuracy, % = 0.64")
+        plt.xlabel("Time Threshold(seconds)")
+        plt.ylabel("Similarity(%)")
+        plt.savefig(os.path.join(os.path.join('./output', 'accuracy_time_summary'), 'accuracy_time_summary_time_threshold_vs_human_accuracy.png'))
+        plt.clf()
+    graphIteratedAccuracyPercentageThreshold()
+    graphPercentageThresholdVsHumanAccuracy()
+    graphIteratedAccuracyTimeThreshold()
+    graphTimeThresholdVsHumanAccuracy()
+if __name__ == "__main__":
+    graphData()
+    # computeDataFolderToCSV('./resource/inputData', './output',percentageThreshold=0.64,timeThreshold=7)
+    # performAccuracyTest('./output/Northampton_Court_House_V43.csv', 
+    #                             './resource/human_quality_control/Norhampton_Court_House.csv')
+    # performAccuracyTest('./output/Belmont+Edward_St_V38.csv', 
+    #                             './resource/human_quality_control/Belmont_St+Edward_St.csv')

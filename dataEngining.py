@@ -58,6 +58,14 @@ class DataEngining:
         medium = 1
         high = 2
         other = -1
+    
+    class AgeGroup(Enum):
+        """Age group enumeration."""
+        age_0_20 = 0  # 0-20
+        age_21_35 = 1  # 21-35
+        age_36_50 = 2  # 36-50
+        age_50_plus = 3  # >50
+        other = -1
 
     class ClothingColor(Enum):
         """Clothing color enumeration."""
@@ -83,6 +91,7 @@ class DataEngining:
     crossingLocationRelativeToBus = CrossingLocationRelativeToBus
     crossingLocationRelativeToBusStop = CrossingLocationRelativeToBusStop
     trafficVolume = TrafficVolume
+    ageGroup = AgeGroup
     clothingColor = ClothingColor
 
     # ---------------- HELPER FUNCTIONS ----------------
@@ -113,6 +122,23 @@ class DataEngining:
         """Parse a value into an enum type, returning the enum value or -1 for other/unknown."""
         if pd.isna(value):
             return -1
+        
+        # Special handling for AgeGroup
+        if enum_type == DataEngining.AgeGroup:
+            normalized = DataEngining.normalize_string(value).replace(" ", "")
+            # Map age group strings to enum values
+            if normalized == "0-20":
+                return DataEngining.AgeGroup.age_0_20.value
+            elif normalized == "21-35":
+                return DataEngining.AgeGroup.age_21_35.value
+            elif normalized == "36-50":
+                return DataEngining.AgeGroup.age_36_50.value
+            elif normalized in [">50", "50>", "50+"]:
+                return DataEngining.AgeGroup.age_50_plus.value
+            else:
+                return DataEngining.AgeGroup.other.value
+        
+        # Standard parsing for other enums
         key = DataEngining.normalize_string(value).replace(" ", "")
         for name, member in enum_type.__members__.items():
             if name.lower() == key:
@@ -201,6 +227,7 @@ class DataEngining:
         row['Estimated Visible Distrction'] = DataEngining.parseEnum(
             get('Estimated Visible Distrction'), DataEngining.boolean
         )
+        row['Estimated Age Group'] = DataEngining.parseEnum(get('Estimated Age Group'), DataEngining.ageGroup)
         row['Bus Interaction'] = DataEngining.parseEnum(get('Bus Interaction'), DataEngining.boolean)
         row['Roadway Crossing'] = DataEngining.parseEnum(get('Roadway Crossing'), DataEngining.boolean)
         row['Clothing Color'] = DataEngining.parseEnum(get('Clothing Color'), DataEngining.clothingColor)
