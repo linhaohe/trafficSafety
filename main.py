@@ -32,7 +32,7 @@ if __name__ == "__main__":
     
     # Uncomment to run single computation and accuracy tests
     computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
-    performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
+    # performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
     # dummy1 = makeDummyTimeData(55215.0,55216.0,55243.0,-1,-1)
     # dummy2 = makeDummyTimeData(-1,55290.0,55308.0,-1,-1)
     # dummy3 = makeDummyTimeData(-1,55222.0,55236.0,-1,-1)
@@ -41,4 +41,4 @@ if __name__ == "__main__":
     # test2 = computeTimeScore(dummy1.iloc[0], dummy3.iloc[0], testTimeThreshold)
     # print(f"Test: {test}")
     # print(f"Test2: {test2}")
-    # performAccuracyTest(BELMONT_OUTPUT, BELMONT_HUMAN_QC) 
+    performAccuracyTest(BELMONT_OUTPUT, BELMONT_HUMAN_QC) 
