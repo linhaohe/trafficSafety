@@ -10,16 +10,16 @@ from traffic_research.core.utils import enumToString, secondsToTimeString
 from config import EXCLUDED_FROM_ACCURACY, DEFAULT_TIME_THRESHOLD
 
 
-def constructRowDict(row0, row1, row2, index, accuracy, percentageThreshold, timeThreshold):
+def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     """Construct a row dictionary by comparing three reviewer rows."""
     def compare(field):
-        return compareParameters(row0, row1, row2, field, accuracy, percentageThreshold)
+        return compareParameters(row0, row1, row2, field, accuracy)
     
     def compareTime(field):
-        return compareTimeDistance(row0['row'][field], row1['row'][field], row2['row'][field], accuracy, timeThreshold)
+        return compareTimeDistance(row0[field], row1[field], row2[field], accuracy, timeThreshold)
     
     def enumToStr(field, enumType, default=""):
-        """Convert enum value to string with optional default for empty values."""
+        """Convert enum value to string with optional default for empty values."""  
         result = enumToString(compare(field), enumType)
         return result if result else default
     
@@ -65,9 +65,10 @@ def constructRowDict(row0, row1, row2, index, accuracy, percentageThreshold, tim
     crossingEndTime = secondsToTimeString(compareTime('Crossing End Time'))
     
     # Crossing behavior fields
-    crosswalkCrossing = enumToStr('Crosswalk Crossing?', DataEngining.boolean)
-    pedestrianPhaseCrossing = enumToStr('Pedestrian Phase Crossing?', DataEngining.boolean)
-    finishedDuringPedsPhase = enumToStr('Did User Finish Crossing During Pedestrian Phase?', DataEngining.boolean)
+    crosswalkCrossing = enumToStr('Crosswalk Crossing', DataEngining.boolean)
+    # print(f"crosswalkCrossing: {crosswalkCrossing}")
+    pedestrianPhaseCrossing = enumToStr('Pedestrian Phase Crossing', DataEngining.boolean)
+    finishedDuringPedsPhase = enumToStr('Did User Finish Crossing During Pedestrian Phase', DataEngining.boolean)
     walkingInteraction = enumToStr('Crossing Interaction Notes', DataEngining.walkInteractions)
     crossingLocationToBus = enumToStr('Crossing Location Relative to Bus', DataEngining.crossingLocationRelativeToBus)
     crossingLocationRelativeToBusStop = enumToStr('Crossing Location Relative to Bus Stop', DataEngining.crossingLocationRelativeToBusStop)
@@ -99,13 +100,13 @@ def constructRowDict(row0, row1, row2, index, accuracy, percentageThreshold, tim
         "Bus Stop Arrival Time": busArrivalTime,
         "Bus Stop Departure Time": busDepartureTime,
         "Noteworthy Events": '0',
-        "Crosswalk Crossing?": crosswalkCrossing,
-        "Pedestrian Phase Crossing?": pedestrianPhaseCrossing,
+        "Crosswalk Crossing": crosswalkCrossing,
+        "Pedestrian Phase Crossing": pedestrianPhaseCrossing,
         "Intend to Cross Timestamp": intendToCrossTimestamp,
         "Crossing Start Time": crossingStartTime,
         "Refuge Island Start Time": refugeIslandStartTime,
         "Refuge Island End Time": refugeIslandEndTime,
-        "Did User Finish Crossing During Pedestrian Phase?": finishedDuringPedsPhase,
+        "Did User Finish Crossing During Pedestrian Phase": finishedDuringPedsPhase,
         "Crossing End Time": crossingEndTime,
         "Crossing Interaction Notes": walkingInteraction,
         "Bus Presence": busPresence,
@@ -117,41 +118,47 @@ def constructRowDict(row0, row1, row2, index, accuracy, percentageThreshold, tim
     }
 
 
-def generateQualityControlDataFrame(refDF, dflist, accuracy, percentageThreshold, timeThreshold):
+def generateQualityControlDataFrame(refDF, dflist, accuracy, timeThreshold):
     """Generate quality control DataFrame from reference DataFrame and dataframes."""
     rows = []
     df0, df1, df2 = dflist[0], dflist[1], dflist[2]
     
     for index in refDF.itertuples():
         # A to B and A to C
-        row0 = {
-            "row": df0.iloc[index.Index],
-            "score": [index.score1, index.score2]
-        }
+        # row0 = {
+        #     "row": df0.iloc[index.Index],
+        #     "score": [index.score1, index.score2]
+        # }
+        row0 = df0.iloc[index.Index]
         # B to A and B to C
         index1 = int(refDF.iloc[index.Index].index1)
         index2 = int(refDF.iloc[index.Index].index2)
-        # index1_bc = int(refDF.iloc[index.Index].index1_bc)
-        # index2_bc = int(refDF.iloc[index.Index].index2_bc)
+        if index1 == -1 and index.score3 != -1:
+          index1 = int(refDF.iloc[index.Index].index1_bc)
+        if index2 == -1 and index.score3 != -1:
+          index2 = int(refDF.iloc[index.Index].index2_bc)
+        
         # if index1 == -1 and index2 == -1 and index1_bc == -1 and index2_bc == -1:
         #     continue
         
         if index1 == -1 or index1 >= len(df1):
             # No match found or invalid index, use first row as fallback (will be handled in comparison)
             index1 = 0 if len(df1) > 0 else -1
-        row1 = {
-            "row": df1.iloc[index1] if index1 != -1 else df0.iloc[index.Index],  # Fallback to row0 if no match
-            "score": [index.score1, index.score3]
-        }
+        row1 = df1.iloc[index1] if index1 != -1 else df0.iloc[index.Index]
+        # row1 = {
+        #     "row": df1.iloc[index1] if index1 != -1 else df0.iloc[index.Index],  # Fallback to row0 if no match
+        #     "score": [index.score1, index.score3]
+        # }
         # C to A and C to B
         if index2 == -1 or index2 >= len(df2):
             # No match found or invalid index, use first row as fallback (will be handled in comparison)
             index2 = 0 if len(df2) > 0 else -1
-        row2 = {
-            "row": df2.iloc[index2] if index2 != -1 else df0.iloc[index.Index],  # Fallback to row0 if no match
-            "score": [index.score2, index.score3]
-        }
-        rows.append(constructRowDict(row0, row1, row2, index.Index, accuracy, percentageThreshold, timeThreshold))
+        row2 = df2.iloc[index2] if index2 != -1 else df0.iloc[index.Index]
+        # row2 = {
+        #     "row": df2.iloc[index2] if index2 != -1 else df0.iloc[index.Index],  # Fallback to row0 if no match
+        #     "score": [index.score2, index.score3]
+        # }
+        rows.append(constructRowDict(row0, row1, row2, index.Index, accuracy, timeThreshold))
     
     return pd.DataFrame(rows)
 

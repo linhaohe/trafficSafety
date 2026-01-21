@@ -68,14 +68,16 @@ class DataEngining:
         other = -1
 
     class ClothingColor(Enum):
-        """Clothing color enumeration."""
-        orange = 10
-        purple = 9
-        white = 8
-        yellow = 7
+        """Clothing color enumeration ranked by brightness (high -> low)."""
+        white = 10
+        yellow = 9
+        orange = 8
+        red = 7
+        pink = 7
+        light_color = 7
         green = 6
-        red = 5
-        blue = 4
+        blue = 5
+        purple = 4
         brown = 3
         grey = 2
         gray = 2
@@ -265,13 +267,13 @@ class DataEngining:
             row[col] = sec
 
         # Parse boolean enum fields
-        row['Crosswalk Crossing?'] = DataEngining.parseEnum(get('Crosswalk Crossing?'), DataEngining.boolean)
+        row['Crosswalk Crossing'] = DataEngining.parseEnum(get('Crosswalk Crossing'), DataEngining.boolean)
         row['Refuge Island'] = DataEngining.parseEnum(get('Refuge Island'), DataEngining.boolean)
-        row['Pedestrian Phase Crossing?'] = DataEngining.parseEnum(
-            get('Pedestrian Phase Crossing?'), DataEngining.boolean
+        row['Pedestrian Phase Crossing'] = DataEngining.parseEnum(
+            get('Pedestrian Phase Crossing'), DataEngining.boolean
         )
-        row['Did User Finish Crossing During Pedestrian Phase?'] = DataEngining.parseEnum(
-            get('Did User Finish Crossing During Pedestrian Phase?'), DataEngining.boolean
+        row['Did User Finish Crossing During Pedestrian Phase'] = DataEngining.parseEnum(
+            get('Did User Finish Crossing During Pedestrian Phase'), DataEngining.boolean
         )
 
         # Special handling for Crossing Interaction Notes
@@ -306,8 +308,8 @@ class DataEngining:
 INT_COLS = [
     'Group Size', 'User Type', 'Estimated Gender', 'Estimated Visible Distrction',
     'Bus Interaction', 'Roadway Crossing', 'Type of Bus Interaction', 'Refuge Island',
-    'Crosswalk Crossing?', 'Pedestrian Phase Crossing?',
-    'Did User Finish Crossing During Pedestrian Phase?',
+    'Crosswalk Crossing', 'Pedestrian Phase Crossing',
+    'Did User Finish Crossing During Pedestrian Phase',
     'Crossing Interaction Notes', 'Bus Presence',
     'Crossing Location Relative to Bus', 'Vehicle Traffic',
     'Clothing Color'

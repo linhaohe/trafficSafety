@@ -122,7 +122,7 @@ def generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold, range
     return qualityDF
 
 
-def compareParameters(row0, row1, row2, fieldName, accuracy, percentageThreshold):
+def compareParameters(row0, row1, row2, fieldName, accuracy):
     """Compare three parameter values and update accuracy tracking.
     
     Compares values from three reviewers (A, B, C) and determines the consensus value
@@ -142,23 +142,22 @@ def compareParameters(row0, row1, row2, fieldName, accuracy, percentageThreshold
     Note:
         Certain parameters are excluded from accuracy tracking.
     """
-    value_a = row0['row'][fieldName]
-    value_b = row1['row'][fieldName]
-    value_c = row2['row'][fieldName]
+    value_a = row0[fieldName]
+    value_b = row1[fieldName]
+    value_c = row2[fieldName]
     
     # Extract similarity scores
-    score_ab = row0['score'][0]  # A to B similarity score
-    score_ac = row0['score'][1]  # A to C similarity score
-    score_bc = row1['score'][1]  # B to C similarity score
+    # score_ab = row0['score'][0]  # A to B similarity score
+    # score_ac = row0['score'][1]  # A to C similarity score
+    # score_bc = row1['score'][1]  # B to C similarity score
     
     # Check which pairs match (both value and score must match)
-    ab_matches = (value_a == value_b) and (score_ab >= percentageThreshold)
-    ac_matches = (value_a == value_c) and (score_ac >= percentageThreshold)
-    bc_matches = (value_b == value_c) and (score_bc >= percentageThreshold)
+    ab_matches = (value_a == value_b) 
+    ac_matches = (value_a == value_c) 
+    bc_matches = (value_b == value_c) 
     
     match_count = sum([ab_matches, ac_matches, bc_matches])
     should_track_accuracy = fieldName not in EXCLUDED_FROM_ACCURACY
-    
     # All three agree
     if match_count == 3:
         if should_track_accuracy:
@@ -183,7 +182,7 @@ def compareParameters(row0, row1, row2, fieldName, accuracy, percentageThreshold
             return value_c
         
         # Only one pair matches
-        if ab_matches:
+        if ab_matches :
             return value_a
         if ac_matches:
             return value_a

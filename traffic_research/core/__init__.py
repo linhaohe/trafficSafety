@@ -2,8 +2,9 @@
 
 from .models import AccuracyScore
 from .scoring import (
-    calculateNumericScore,
+    calculateTimeScore,
     calculateConditionScore,
+    calculateClothingColorScore,
     computeTimeScore,
     computeConditionScore,
     computeFeatureScores
@@ -25,8 +26,9 @@ from .data_engineering import (
 
 __all__ = [
     'AccuracyScore',
-    'calculateNumericScore',
+    'calculateTimeScore',
     'calculateConditionScore',
+    'calculateClothingColorScore',
     'computeTimeScore',
     'computeConditionScore',
     'computeFeatureScores',
