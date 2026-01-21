@@ -8,16 +8,23 @@ from .scoring import computeFeatureScores
 from config import EXCLUDED_FROM_ACCURACY
 
 
-def generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold):
+def generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold, range_value):
     """Generate reference DataFrame by matching rows across three dataframes.
     
     Compares:
-    - A to B (df0 to df1): finds best match in B for each row in A
-    - A to C (df0 to df2): finds best match in C for each row in A
-    - B to C (df1 to df2): finds best match in C for each row in B
+    - A to B (df0 to df1): for row i in A, compares with rows in B in range [i-range, i+range]
+    - A to C (df0 to df2): for row i in A, compares with rows in C in range [i-range, i+range]
+    - B to C (df1 to df2): for row i in B, compares with rows in C in range [i-range, i+range]
     
-    Only considers matches above percentageThreshold. Once a row is matched, 
-    it is marked as visited and cannot be used in future comparisons.
+    For each row at index i, only compares with rows in other dataframes within 
+    the range [i-range, i+range]. Only considers matches above percentageThreshold. 
+    Once a row is matched, it is marked as visited and cannot be used in future comparisons.
+    
+    Args:
+        dflist: List of three dataframes [df0, df1, df2]
+        timeThreshold: Time threshold for matching
+        percentageThreshold: Minimum similarity score for a match
+        range_value: Range value for index comparison (default 0, meaning only same index)
     """
     rows = []
     df0, df1, df2 = dflist[0], dflist[1], dflist[2]
@@ -26,41 +33,53 @@ def generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold):
     visited_b = set()  # Rows in df1 (B) that have been matched
     visited_c = set()  # Rows in df2 (C) that have been matched
 
-    # Compare B to C (df1 to df2) - independent comparison for all rows in B
+    # Compare B to C (df1 to df2) - for each row i in B, compare with rows in C in range [i-range, i+range]
     bc_matches = {}
     for row1 in df1.itertuples():
+        i = row1.Index
         maxScore3, maxIndex3 = -1.0, -1
-        for row2 in df2.itertuples():
-            if row2.Index in visited_c:
+        
+        # Calculate the range of indices to compare in df2
+        start_idx = max(0, i - range_value)
+        end_idx = min(len(df2), i + range_value + 1)
+        
+        for j in range(start_idx, end_idx):
+            if j in visited_c:
                 continue
-            score = computeFeatureScores(df1.iloc[row1.Index], df2.iloc[row2.Index], timeThreshold)
+            score = computeFeatureScores(df1.iloc[i], df2.iloc[j], timeThreshold)
             if score >= percentageThreshold and score > maxScore3:
-                maxScore3, maxIndex3 = score, row2.Index
-        bc_matches[row1.Index] = {
+                maxScore3, maxIndex3 = score, j
+        
+        bc_matches[i] = {
             "index2_bc": maxIndex3,
             "score3": maxScore3
         }
 
     # Compare A to B and A to C, and include B to C match
     for row in df0.itertuples():
+        i = row.Index
         maxScore1, maxIndex1 = -1.0, -1
         maxScore2, maxIndex2 = -1.0, -1
 
-        # Compare A to B (df0 to df1) - skip visited rows
-        for row1 in df1.itertuples():
-            if row1.Index in visited_b:
+        # Compare A to B (df0 to df1) - compare row i in A with rows in B in range [i-range, i+range]
+        start_idx_b = max(0, i - range_value)
+        end_idx_b = min(len(df1), i + range_value + 1)
+        for j in range(start_idx_b, end_idx_b):
+            if j in visited_b:
                 continue
-            score = computeFeatureScores(df0.iloc[row.Index], df1.iloc[row1.Index], timeThreshold)
+            score = computeFeatureScores(df0.iloc[i], df1.iloc[j], timeThreshold)
             if score >= percentageThreshold and score > maxScore1:
-                maxScore1, maxIndex1 = score, row1.Index
+                maxScore1, maxIndex1 = score, j
 
-        # Compare A to C (df0 to df2) - skip visited rows
-        for row2 in df2.itertuples():
-            if row2.Index in visited_c:
+        # Compare A to C (df0 to df2) - compare row i in A with rows in C in range [i-range, i+range]
+        start_idx_c = max(0, i - range_value)
+        end_idx_c = min(len(df2), i + range_value + 1)
+        for j in range(start_idx_c, end_idx_c):
+            if j in visited_c:
                 continue
-            score = computeFeatureScores(df0.iloc[row.Index], df2.iloc[row2.Index], timeThreshold)
+            score = computeFeatureScores(df0.iloc[i], df2.iloc[j], timeThreshold)
             if score >= percentageThreshold and score > maxScore2:
-                maxScore2, maxIndex2 = score, row2.Index
+                maxScore2, maxIndex2 = score, j
 
         # Mark matched rows as visited only if score is above threshold
         if maxIndex1 != -1 and maxScore1 >= percentageThreshold:

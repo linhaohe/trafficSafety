@@ -171,6 +171,7 @@ class DataEngining:
                     minute = int(time_match.group(2))
                     second_str = time_match.group(3)
                     second = int(second_str) if second_str else 0
+                    am_pm = time_match.group(4)
                     
                     # If hour > 12, treat as 24-hour time with erroneous AM/PM suffix
                     # Remove the AM/PM suffix and parse as 24-hour time
@@ -180,11 +181,23 @@ class DataEngining:
                         time_str = time_str_clean
                     elif hour < 1:
                         return -1
-                    # Validate minutes and seconds
-                    if minute > 59 or second > 59:
-                        return -1
+                    else:
+                        # Handle 12-hour format with AM/PM (hour <= 12)
+                        # 12:xx:xx AM -> 00:xx:xx, 12:xx:xx PM -> 12:xx:xx
+                        # 1-11:xx:xx AM -> 01-11:xx:xx, 1-11:xx:xx PM -> 13-23:xx:xx
+                        if am_pm == 'PM':
+                            if hour != 12:
+                                hour = hour + 12
+                        else:  # AM
+                            if hour == 12:
+                                hour = 0
+                        # Validate minutes and seconds
+                        if minute > 59 or second > 59:
+                            return -1
+                        # Return directly without pandas parsing for AM/PM times
+                        return hour * 3600 + minute * 60 + second
             
-            # Try to parse with pandas
+            # Try to parse with pandas (for times without AM/PM or > 12 hours)
             t = pd.to_datetime(time_str, errors='coerce')
             if pd.isna(t):
                 return -1

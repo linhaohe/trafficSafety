@@ -10,13 +10,14 @@ from config import TIME_SCORE_WEIGHT, CONDITION_SCORE_WEIGHT, DEFAULT_TIME_THRES
 
 def calculateNumericScore(num1, num2, threshold):
     """Calculate numeric similarity score using exponential decay."""
-    if threshold <= 0:
+    abs_diff = abs(num1 - num2)
+    if threshold <= 0 or abs_diff > threshold:
         # Avoid division by zero, return 0 if threshold is invalid
         return 0.0
     if pd.isna(num1) or pd.isna(num2):
         # Handle NaN values
         return 0.0
-    return math.exp(-abs(num1 - num2) / threshold)
+    return math.exp(-abs_diff / threshold)
 
 
 def calculateConditionScore(condition1, condition2):
@@ -51,10 +52,14 @@ def computeConditionScore(row1, row2):
         'Crossing Interaction Notes',
         'Crossing Location Relative to Bus Stop',
         'Vehicle Traffic',
-        'Group Size'
+        'Group Size',
+        'Crosswalk Crossing?',
+        'Clothing Color',
+        'Did User Finish Crossing During Pedestrian Phase?',
+        'Bus Presence',
     ]
     return sum(calculateConditionScore(row1[field], row2[field]) 
-               for field in condition_fields)
+               for field in condition_fields) * CONDITION_SCORE_WEIGHT / len(condition_fields)
 
 
 def computeFeatureScores(row1, row2, timeThreshold):
@@ -62,4 +67,4 @@ def computeFeatureScores(row1, row2, timeThreshold):
     timeScore = computeTimeScore(row1, row2, timeThreshold)
     conditionScore = computeConditionScore(row1, row2)
     return (timeScore * TIME_SCORE_WEIGHT + 
-            conditionScore * CONDITION_SCORE_WEIGHT)
+            conditionScore)

@@ -13,7 +13,12 @@ from traffic_research.core.models import AccuracyScore
 def computeTrafficData(fileList, accuracy, percentageThreshold, timeThreshold):
     """Compute traffic data from file list and generate quality control DataFrame."""
     dflist = generateDateFrameList(fileList)
-    refDF = generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold)
+    dflist = sorted(dflist, key=len)
+    range_value = dflist[-1].shape[0] - dflist[0].shape[0] + 2
+    # print(f"Range value: {range_value}")
+    print(f"list[0]: {dflist[0].iloc[4]}")
+    print(f"list[-1]: {dflist[-1].iloc[4]}")
+    refDF = generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold, range_value)
     dfQualityControl = generateQualityControlDataFrame(refDF, dflist, accuracy, percentageThreshold, timeThreshold)
     dfQualityControl = dfQualityControl.transpose()
     return dfQualityControl, refDF

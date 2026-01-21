@@ -18,56 +18,75 @@ def constructRowDict(row0, row1, row2, index, accuracy, percentageThreshold, tim
     def compareTime(field):
         return compareTimeDistance(row0['row'][field], row1['row'][field], row2['row'][field], accuracy, timeThreshold)
     
-    def enumToStr(field, enumType):
-        return enumToString(compare(field), enumType)
+    def enumToStr(field, enumType, default=""):
+        """Convert enum value to string with optional default for empty values."""
+        result = enumToString(compare(field), enumType)
+        return result if result else default
     
-    videoTitle = compare('Video Title')
-    locationName = compare('Location Name')
-    busStopIDs = compare('Bus Stop IDs/Addresses')
+    def safeStr(value, default=""):
+        """Convert value to string, using default if value is -1 or empty."""
+        if value == -1:
+            return default
+        return str(value) if value != default else default
+    
+    # Location and infrastructure fields
+    videoTitle = safeStr(compare('Video Title'))
+    locationName = safeStr(compare('Location Name'))
+    busStopIDs = safeStr(compare('Bus Stop IDs/Addresses'))
     busStopRouteCount = compare('Count of Bus Stop Routes')
     crosswalkLocationRelativeToBusStop = compare('Crosswalk Location Relative to Bus Stop')
     crossingTreatment = compare('Crossing Treatment')
     refugeIsland = enumToStr('Refuge Island', DataEngining.boolean)
+    
+    # User information fields
     userCount = index + 1
     userType = enumToStr('User Type', DataEngining.userType)
-    groupSize = compare('Group Size')
-    estimatedGender = enumToStr('Estimated Gender', DataEngining.gender)
-    estimatedAgeGroup = enumToStr('Estimated Age Group', DataEngining.ageGroup)
-    clothingColor = enumToStr('Clothing Color', DataEngining.clothingColor)
+    groupSize = safeStr(compare('Group Size'))
+    estimatedGender = enumToStr('Estimated Gender', DataEngining.gender, default="hard to tell")
+    estimatedAgeGroup = enumToStr('Estimated Age Group', DataEngining.ageGroup, default="hard to tell")
+    clothingColor = enumToStr('Clothing Color', DataEngining.clothingColor, default="hard to tell")
     visibilityScale = compare('Visibility Scale')
     estimatedVisibleDistraction = enumToStr('Estimated Visible Distrction', DataEngining.boolean)
     userNotes = compare('User Notes')
+    
+    # Bus interaction fields
     busInteraction = enumToStr('Bus Interaction', DataEngining.boolean)
     roadwayCrossing = enumToStr('Roadway Crossing', DataEngining.boolean)
     typeOfBusInteraction = enumToStr('Type of Bus Interaction', DataEngining.busInteractions)
     busArrivalTime = secondsToTimeString(compareTime('Bus Stop Arrival Time'))
     busDepartureTime = secondsToTimeString(compareTime('Bus Stop Departure Time'))
-    crosswalkCrossing = enumToStr('Crosswalk Crossing?', DataEngining.boolean)
-    pedestrianPhaseCrossing = enumToStr('Pedestrian Phase Crossing?', DataEngining.boolean)
+    busPresence = enumToStr('Bus Presence', DataEngining.boolean)
+    
+    # Crossing timing fields
     intendToCrossTimestamp = secondsToTimeString(compareTime('Intend to Cross Timestamp'))
     crossingStartTime = secondsToTimeString(compareTime('Crossing Start Time'))
     refugeIslandStartTime = secondsToTimeString(compareTime('Refuge Island Start Time'))
     refugeIslandEndTime = secondsToTimeString(compareTime('Refuge Island End Time'))
-    finishedDuringPedsPhase = enumToStr('Did User Finish Crossing During Pedestrian Phase?', DataEngining.boolean)
     crossingEndTime = secondsToTimeString(compareTime('Crossing End Time'))
+    
+    # Crossing behavior fields
+    crosswalkCrossing = enumToStr('Crosswalk Crossing?', DataEngining.boolean)
+    pedestrianPhaseCrossing = enumToStr('Pedestrian Phase Crossing?', DataEngining.boolean)
+    finishedDuringPedsPhase = enumToStr('Did User Finish Crossing During Pedestrian Phase?', DataEngining.boolean)
     walkingInteraction = enumToStr('Crossing Interaction Notes', DataEngining.walkInteractions)
-    busPresence = enumToStr('Bus Presence', DataEngining.boolean)
     crossingLocationToBus = enumToStr('Crossing Location Relative to Bus', DataEngining.crossingLocationRelativeToBus)
     crossingLocationRelativeToBusStop = enumToStr('Crossing Location Relative to Bus Stop', DataEngining.crossingLocationRelativeToBusStop)
+    
+    # Traffic and notes fields
     trafficCondition = enumToStr('Vehicle Traffic', DataEngining.trafficVolume)
     
     return {
-        "Video Title": "" if videoTitle == -1 else videoTitle,
+        "Video Title": videoTitle,
         'Initials': '',
-        "Location Name": "" if locationName == -1 else locationName,
-        "Bus Stop IDs/Addresses": "" if busStopIDs == -1 else busStopIDs,
+        "Location Name": locationName,
+        "Bus Stop IDs/Addresses": busStopIDs,
         "Count of Bus Stop Routes": busStopRouteCount,
         "Crosswalk Location Relative to Bus Stop": crosswalkLocationRelativeToBusStop,
         "Crossing Treatment": crossingTreatment,
         "Refuge Island": refugeIsland,
-        "User Count": "" if userCount == -1 else userCount,
+        "User Count": userCount,
         "User Type": userType,
-        "Group Size": "" if groupSize == -1 else str(groupSize),
+        "Group Size": groupSize,
         "Estimated Gender": estimatedGender,
         "Estimated Age Group": estimatedAgeGroup,
         "Clothing Color": clothingColor,
@@ -111,6 +130,12 @@ def generateQualityControlDataFrame(refDF, dflist, accuracy, percentageThreshold
         }
         # B to A and B to C
         index1 = int(refDF.iloc[index.Index].index1)
+        index2 = int(refDF.iloc[index.Index].index2)
+        # index1_bc = int(refDF.iloc[index.Index].index1_bc)
+        # index2_bc = int(refDF.iloc[index.Index].index2_bc)
+        # if index1 == -1 and index2 == -1 and index1_bc == -1 and index2_bc == -1:
+        #     continue
+        
         if index1 == -1 or index1 >= len(df1):
             # No match found or invalid index, use first row as fallback (will be handled in comparison)
             index1 = 0 if len(df1) > 0 else -1
@@ -119,7 +144,6 @@ def generateQualityControlDataFrame(refDF, dflist, accuracy, percentageThreshold
             "score": [index.score1, index.score3]
         }
         # C to A and C to B
-        index2 = int(refDF.iloc[index.Index].index2)
         if index2 == -1 or index2 >= len(df2):
             # No match found or invalid index, use first row as fallback (will be handled in comparison)
             index2 = 0 if len(df2) > 0 else -1

@@ -4,13 +4,22 @@ from .data_engineering import DataEngining
 
 
 def secondsToTimeString(seconds):
-    """Convert seconds to HH:MM:SS format."""
+    """Convert seconds to HH:MM:SS format (24-hour format).
+    
+    Args:
+        seconds: Number of seconds since midnight (0-86399)
+        
+    Returns:
+        Time string in HH:MM:SS format, or "N/A" if invalid
+    """
     if seconds is None or seconds < 0:
         return "N/A"
+    # Ensure seconds are within a single day (wrap around if needed)
+    seconds = int(seconds) % 86400
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
     secs = seconds % 60
-    return f"{int(hours):02}:{int(minutes):02}:{int(secs):02}"
+    return f"{hours:02}:{minutes:02}:{secs:02}"
 
 
 def enumToString(enumVal, enumList):
