@@ -18,6 +18,6 @@ if __name__ == "__main__":
     # graphData()
     
     # Uncomment to run single computation and accuracy tests
-    computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
+    # computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
     performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
-    performAccuracyTest(BELMONT_OUTPUT, BELMONT_HUMAN_QC)
+    # performAccuracyTest(BELMONT_OUTPUT, BELMONT_HUMAN_QC)
