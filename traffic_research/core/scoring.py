@@ -5,7 +5,7 @@ import pandas as pd
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-from config import TIME_SCORE_WEIGHT, CONDITION_SCORE_WEIGHT, DEFAULT_TIME_THRESHOLD_WEIGHT
+from config import TIME_SCORE_WEIGHT, CONDITION_SCORE_WEIGHT, COLOR_WEIGHT
 
 
 def calculateTimeScore(num1, num2, threshold):
@@ -99,7 +99,6 @@ def computeConditionScore(row1, row2):
         'Did User Finish Crossing During Pedestrian Phase',
         'Bus Presence',
     ]
-    colorWeight = 0.3
     # Average score across all non-color condition fields
     base_condition_avg = (
         sum(calculateConditionScore(row1[field], row2[field])
@@ -107,8 +106,8 @@ def computeConditionScore(row1, row2):
         if condition_fields else 0.0
     )
     # Weighted combination: 70% other conditions, 30% clothing color
-    other_weighted = base_condition_avg * (1 - colorWeight)
-    colorScore = calculateClothingColorScore(row1['Clothing Color'], row2['Clothing Color']) * colorWeight
+    other_weighted = base_condition_avg * (1 - COLOR_WEIGHT)
+    colorScore = calculateClothingColorScore(row1['Clothing Color'], row2['Clothing Color']) * COLOR_WEIGHT
     condition_total = other_weighted + colorScore
     # Return unweighted score (weight applied in computeFeatureScores)
     return condition_total
