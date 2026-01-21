@@ -19,7 +19,7 @@ def calculateTimeScore(num1, num2, threshold):
         return 0.0
     if abs_diff < threshold:
         return 1.0
-    return math.exp(-abs_diff / (threshold+10))
+    return math.exp(-abs_diff / (threshold + 10))
 
 
 def calculateConditionScore(condition1, condition2):
@@ -79,8 +79,8 @@ def computeTimeScore(row1, row2, threshold):
     # If no valid fields to compare, return 0
     if not valid_scores:
         return 0.0
-    # Return average of valid scores, weighted by TIME_SCORE_WEIGHT
-    return sum(valid_scores) / len(valid_scores) * TIME_SCORE_WEIGHT
+    # Return average of valid scores (unweighted, weight applied in computeFeatureScores)
+    return sum(valid_scores) / len(valid_scores)
 
 def computeConditionScore(row1, row2):
     """Compute condition-based similarity score (weight: 50%)."""
@@ -110,12 +110,14 @@ def computeConditionScore(row1, row2):
     other_weighted = base_condition_avg * (1 - colorWeight)
     colorScore = calculateClothingColorScore(row1['Clothing Color'], row2['Clothing Color']) * colorWeight
     condition_total = other_weighted + colorScore
-    return condition_total * CONDITION_SCORE_WEIGHT
+    # Return unweighted score (weight applied in computeFeatureScores)
+    return condition_total
 
 
 def computeFeatureScores(row1, row2, timeThreshold):
     """Compute weighted feature scores for row comparison."""
     timeScore = computeTimeScore(row1, row2, timeThreshold)
     conditionScore = computeConditionScore(row1, row2)
-    return (timeScore + 
-            conditionScore)
+    # Apply weights at the final combination level
+    return (timeScore * TIME_SCORE_WEIGHT + 
+            conditionScore * CONDITION_SCORE_WEIGHT)
