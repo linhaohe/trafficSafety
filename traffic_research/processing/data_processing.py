@@ -14,6 +14,8 @@ def computeTrafficData(fileList, accuracy, percentageThreshold, timeThreshold):
     """Compute traffic data from file list and generate quality control DataFrame."""
     dflist = generateDateFrameList(fileList)
     dflist = sorted(dflist, key=len)
+    # Swap index 0 with index 1
+    dflist[0], dflist[1] = dflist[1], dflist[0]
     # Calculate range value based on dataframe length differences
     range_value = dflist[-1].shape[0] - dflist[0].shape[0] + 2
     refDF = generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold, range_value)

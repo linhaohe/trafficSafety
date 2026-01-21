@@ -41,4 +41,4 @@ if __name__ == "__main__":
     # test2 = computeTimeScore(dummy1.iloc[0], dummy3.iloc[0], testTimeThreshold)
     # print(f"Test: {test}")
     # print(f"Test2: {test2}")
-    performAccuracyTest(BELMONT_OUTPUT, BELMONT_HUMAN_QC) 
+    # performAccuracyTest(BELMONT_OUTPUT, BELMONT_HUMAN_QC) 
