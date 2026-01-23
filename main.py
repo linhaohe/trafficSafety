@@ -31,8 +31,8 @@ if __name__ == "__main__":
     # graphData()
     
     # Uncomment to run single computation and accuracy tests
-    computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
-    # performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
+    # computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
+    performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
     # dummy1 = makeDummyTimeData(55215.0,55216.0,55243.0,-1,-1)
     # dummy2 = makeDummyTimeData(-1,55290.0,55308.0,-1,-1)
     # dummy3 = makeDummyTimeData(-1,55222.0,55236.0,-1,-1)

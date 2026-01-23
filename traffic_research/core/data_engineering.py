@@ -30,6 +30,7 @@ class DataEngining:
         boarded = 0
         alighted = 1
         waited = 2
+        unknown_bus_interaction = 3
         other = -1
 
     class WalkInteractions(Enum):
@@ -218,6 +219,73 @@ class DataEngining:
         except (ValueError, TypeError, AttributeError):
             return -1
 
+    @staticmethod
+    def logic_check(row):
+        """
+        Apply logical consistency checks and corrections to row data.
+        
+        Rules:
+        1. Bus Interaction: If Type of Bus Interaction is specified, Bus Interaction must be 'yes'
+        2. Type of Bus Interaction: If Bus Interaction is 'yes' but type is 'other', set to 'unknown_bus_interaction'
+        3. Bus Presence: Set to 'yes' if any bus-related activity is indicated
+        4. Roadway Crossing: Set to 'yes' if any crossing activity is indicated
+        5. Refuge Island & Crosswalk: Set to 'yes' if refuge island times are present
+        """
+        # Column name constants
+        BUS_INTERACTION = 'Bus Interaction'
+        BUS_PRESENCE = 'Bus Presence'
+        TYPE_BUS_INTERACTION = 'Type of Bus Interaction'
+        CROSSING_LOC_REL_BUS = 'Crossing Location Relative to Bus'
+        ROADWAY_CROSSING = 'Roadway Crossing'
+        CROSSWALK_CROSSING = 'Crosswalk Crossing'
+        CROSSING_START_TIME = 'Crossing Start Time'
+        CROSSING_END_TIME = 'Crossing End Time'
+        REFUGE_ISLAND_START = 'Refuge Island Start Time'
+        REFUGE_ISLAND_END = 'Refuge Island End Time'
+        CROSSING_NOTES = 'Crossing Interaction Notes'
+        CROSSING_LOC_REL_BUS_STOP = 'Crossing Location Relative to Bus Stop'
+        REFUGE_ISLAND = 'Refuge Island'
+        FINISH_CROSSING_DURING_PEDESTRIAN_PHASE = 'Did User Finish Crossing During Pedestrian Phase'
+        
+        # Enum value shortcuts
+        OTHER = DataEngining.boolean.other.value
+        YES = DataEngining.boolean.yes.value
+        BUS_INTERACTION_OTHER = DataEngining.busInteractions.other.value
+        BUS_INTERACTION_UNKNOWN = DataEngining.busInteractions.unknown_bus_interaction.value
+        CROSSING_LOC_OTHER = DataEngining.crossingLocationRelativeToBus.other.value
+        CROSSING_LOC_STOP_OTHER = DataEngining.crossingLocationRelativeToBusStop.other.value
+        
+        # Rule 1: If Type of Bus Interaction is specified, Bus Interaction must be 'yes'
+        if row[BUS_INTERACTION] == OTHER and row[TYPE_BUS_INTERACTION] != BUS_INTERACTION_OTHER:
+            row[BUS_INTERACTION] = YES
+        
+        # Rule 2: If Bus Interaction is 'yes' but Type is 'other', set Type to 'unknown_bus_interaction'
+        if row[TYPE_BUS_INTERACTION] == BUS_INTERACTION_OTHER and row[BUS_INTERACTION] != OTHER:
+            if row[BUS_INTERACTION] == YES:
+                row[TYPE_BUS_INTERACTION] = BUS_INTERACTION_UNKNOWN
+        
+        # Rule 3: Bus Presence is 'yes' if any bus-related activity is indicated
+        if (row[BUS_INTERACTION] == YES or 
+            row[TYPE_BUS_INTERACTION] != BUS_INTERACTION_OTHER or 
+            row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER):
+            row[BUS_PRESENCE] = YES
+        
+        # Rule 4: Roadway Crossing is 'yes' if any crossing activity is indicated
+        if (row[CROSSWALK_CROSSING] == YES or 
+            row[CROSSING_NOTES] != OTHER or 
+            row[CROSSING_START_TIME] > 0 or 
+            row[CROSSING_END_TIME] > 0 or 
+            row[CROSSING_LOC_REL_BUS_STOP] != CROSSING_LOC_STOP_OTHER or 
+            row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER or
+            row[FINISH_CROSSING_DURING_PEDESTRIAN_PHASE] == YES):
+            row[ROADWAY_CROSSING] = YES
+        
+        # Rule 5: If refuge island times are present, set Refuge Island and Crosswalk Crossing to 'yes'
+        if row[REFUGE_ISLAND_START] > 0 and row[REFUGE_ISLAND_END] > 0:
+            row[REFUGE_ISLAND] = YES
+            row[CROSSWALK_CROSSING] = YES
+        
+        return row
 
     # ---------------- MAIN ROW PROCESSOR ----------------
     @staticmethod
@@ -228,9 +296,7 @@ class DataEngining:
 
         def get(col):
             """Helper to safely get column value."""
-            return row[col] if col in row else None
-
-        # Parse Group Size
+            return row[col] if col in row else None        # Parse Group Size
         try:
             row['Group Size'] = int(get('Group Size'))
         except (ValueError, TypeError):
@@ -243,11 +309,11 @@ class DataEngining:
             get('Estimated Visible Distrction'), DataEngining.boolean
         )
         row['Estimated Age Group'] = DataEngining.parseEnum(get('Estimated Age Group'), DataEngining.ageGroup)
-        row['Bus Interaction'] = DataEngining.parseEnum(get('Bus Interaction'), DataEngining.boolean)
         row['Roadway Crossing'] = DataEngining.parseEnum(get('Roadway Crossing'), DataEngining.boolean)
         row['Clothing Color'] = DataEngining.parseEnum(get('Clothing Color'), DataEngining.clothingColor)
 
         # Special handling for Type of Bus Interaction
+        row['Bus Interaction'] = DataEngining.parseEnum(get('Bus Interaction'), DataEngining.boolean)
         tbi = get('Type of Bus Interaction')
         if tbi == 'waited at bus stop':
             row['Type of Bus Interaction'] = DataEngining.busInteractions.waited.value
@@ -301,6 +367,7 @@ class DataEngining:
 
         row['Vehicle Traffic'] = DataEngining.parseEnum(get('Vehicle Traffic'), DataEngining.trafficVolume)
 
+        row = DataEngining.logic_check(row)
         return row
 
 
