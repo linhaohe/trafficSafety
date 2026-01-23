@@ -30,6 +30,7 @@ class DataEngining:
         boarded = 0
         alighted = 1
         waited = 2
+        unknown_bus_interaction = 3
         other = -1
 
     class WalkInteractions(Enum):
@@ -218,6 +219,22 @@ class DataEngining:
         except (ValueError, TypeError, AttributeError):
             return -1
 
+    @staticmethod
+    def logic_check(row):
+            A= 'Bus Interaction'
+            B= 'Bus Presence'
+            C= 'Type of Bus Interaction'
+            D= 'Crossing Location Relative to Bus'
+            if row[A] == DataEngining.boolean.other.value and row[C] != DataEngining.busInteractions.other.value:
+                row[A] = DataEngining.boolean.yes.value
+            if row[C] == DataEngining.busInteractions.other.value and row[A] != DataEngining.boolean.other.value:
+                if row[A] == DataEngining.boolean.yes.value:
+                    row[C] = DataEngining.busInteractions.unknown_bus_interaction.value
+                else:
+                    row[C] = DataEngining.busInteractions.other.value
+            if row[A] == DataEngining.boolean.yes.value or row[C] != DataEngining.busInteractions.other.value or row[D] != DataEngining.crossingLocationRelativeToBus.other.value:
+                row[B] = DataEngining.boolean.yes.value
+            return row
 
     # ---------------- MAIN ROW PROCESSOR ----------------
     @staticmethod
@@ -228,9 +245,7 @@ class DataEngining:
 
         def get(col):
             """Helper to safely get column value."""
-            return row[col] if col in row else None
-
-        # Parse Group Size
+            return row[col] if col in row else None        # Parse Group Size
         try:
             row['Group Size'] = int(get('Group Size'))
         except (ValueError, TypeError):
@@ -243,11 +258,11 @@ class DataEngining:
             get('Estimated Visible Distrction'), DataEngining.boolean
         )
         row['Estimated Age Group'] = DataEngining.parseEnum(get('Estimated Age Group'), DataEngining.ageGroup)
-        row['Bus Interaction'] = DataEngining.parseEnum(get('Bus Interaction'), DataEngining.boolean)
         row['Roadway Crossing'] = DataEngining.parseEnum(get('Roadway Crossing'), DataEngining.boolean)
         row['Clothing Color'] = DataEngining.parseEnum(get('Clothing Color'), DataEngining.clothingColor)
 
         # Special handling for Type of Bus Interaction
+        row['Bus Interaction'] = DataEngining.parseEnum(get('Bus Interaction'), DataEngining.boolean)
         tbi = get('Type of Bus Interaction')
         if tbi == 'waited at bus stop':
             row['Type of Bus Interaction'] = DataEngining.busInteractions.waited.value
@@ -301,6 +316,7 @@ class DataEngining:
 
         row['Vehicle Traffic'] = DataEngining.parseEnum(get('Vehicle Traffic'), DataEngining.trafficVolume)
 
+        row = DataEngining.logic_check(row)
         return row
 
 
