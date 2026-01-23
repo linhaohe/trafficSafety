@@ -221,20 +221,71 @@ class DataEngining:
 
     @staticmethod
     def logic_check(row):
-            A= 'Bus Interaction'
-            B= 'Bus Presence'
-            C= 'Type of Bus Interaction'
-            D= 'Crossing Location Relative to Bus'
-            if row[A] == DataEngining.boolean.other.value and row[C] != DataEngining.busInteractions.other.value:
-                row[A] = DataEngining.boolean.yes.value
-            if row[C] == DataEngining.busInteractions.other.value and row[A] != DataEngining.boolean.other.value:
-                if row[A] == DataEngining.boolean.yes.value:
-                    row[C] = DataEngining.busInteractions.unknown_bus_interaction.value
-                else:
-                    row[C] = DataEngining.busInteractions.other.value
-            if row[A] == DataEngining.boolean.yes.value or row[C] != DataEngining.busInteractions.other.value or row[D] != DataEngining.crossingLocationRelativeToBus.other.value:
-                row[B] = DataEngining.boolean.yes.value
-            return row
+        """
+        Apply logical consistency checks and corrections to row data.
+        
+        Rules:
+        1. Bus Interaction: If Type of Bus Interaction is specified, Bus Interaction must be 'yes'
+        2. Type of Bus Interaction: If Bus Interaction is 'yes' but type is 'other', set to 'unknown_bus_interaction'
+        3. Bus Presence: Set to 'yes' if any bus-related activity is indicated
+        4. Roadway Crossing: Set to 'yes' if any crossing activity is indicated
+        5. Refuge Island & Crosswalk: Set to 'yes' if refuge island times are present
+        """
+        # Column name constants
+        BUS_INTERACTION = 'Bus Interaction'
+        BUS_PRESENCE = 'Bus Presence'
+        TYPE_BUS_INTERACTION = 'Type of Bus Interaction'
+        CROSSING_LOC_REL_BUS = 'Crossing Location Relative to Bus'
+        ROADWAY_CROSSING = 'Roadway Crossing'
+        CROSSWALK_CROSSING = 'Crosswalk Crossing'
+        CROSSING_START_TIME = 'Crossing Start Time'
+        CROSSING_END_TIME = 'Crossing End Time'
+        REFUGE_ISLAND_START = 'Refuge Island Start Time'
+        REFUGE_ISLAND_END = 'Refuge Island End Time'
+        CROSSING_NOTES = 'Crossing Interaction Notes'
+        CROSSING_LOC_REL_BUS_STOP = 'Crossing Location Relative to Bus Stop'
+        REFUGE_ISLAND = 'Refuge Island'
+        FINISH_CROSSING_DURING_PEDESTRIAN_PHASE = 'Did User Finish Crossing During Pedestrian Phase'
+        
+        # Enum value shortcuts
+        OTHER = DataEngining.boolean.other.value
+        YES = DataEngining.boolean.yes.value
+        BUS_INTERACTION_OTHER = DataEngining.busInteractions.other.value
+        BUS_INTERACTION_UNKNOWN = DataEngining.busInteractions.unknown_bus_interaction.value
+        CROSSING_LOC_OTHER = DataEngining.crossingLocationRelativeToBus.other.value
+        CROSSING_LOC_STOP_OTHER = DataEngining.crossingLocationRelativeToBusStop.other.value
+        
+        # Rule 1: If Type of Bus Interaction is specified, Bus Interaction must be 'yes'
+        if row[BUS_INTERACTION] == OTHER and row[TYPE_BUS_INTERACTION] != BUS_INTERACTION_OTHER:
+            row[BUS_INTERACTION] = YES
+        
+        # Rule 2: If Bus Interaction is 'yes' but Type is 'other', set Type to 'unknown_bus_interaction'
+        if row[TYPE_BUS_INTERACTION] == BUS_INTERACTION_OTHER and row[BUS_INTERACTION] != OTHER:
+            if row[BUS_INTERACTION] == YES:
+                row[TYPE_BUS_INTERACTION] = BUS_INTERACTION_UNKNOWN
+        
+        # Rule 3: Bus Presence is 'yes' if any bus-related activity is indicated
+        if (row[BUS_INTERACTION] == YES or 
+            row[TYPE_BUS_INTERACTION] != BUS_INTERACTION_OTHER or 
+            row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER):
+            row[BUS_PRESENCE] = YES
+        
+        # Rule 4: Roadway Crossing is 'yes' if any crossing activity is indicated
+        if (row[CROSSWALK_CROSSING] == YES or 
+            row[CROSSING_NOTES] != OTHER or 
+            row[CROSSING_START_TIME] > 0 or 
+            row[CROSSING_END_TIME] > 0 or 
+            row[CROSSING_LOC_REL_BUS_STOP] != CROSSING_LOC_STOP_OTHER or 
+            row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER or
+            row[FINISH_CROSSING_DURING_PEDESTRIAN_PHASE] == YES):
+            row[ROADWAY_CROSSING] = YES
+        
+        # Rule 5: If refuge island times are present, set Refuge Island and Crosswalk Crossing to 'yes'
+        if row[REFUGE_ISLAND_START] > 0 and row[REFUGE_ISLAND_END] > 0:
+            row[REFUGE_ISLAND] = YES
+            row[CROSSWALK_CROSSING] = YES
+        
+        return row
 
     # ---------------- MAIN ROW PROCESSOR ----------------
     @staticmethod
