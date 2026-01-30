@@ -250,26 +250,28 @@ class DataEngining:
         # Enum value shortcuts
         OTHER = DataEngining.boolean.other.value
         YES = DataEngining.boolean.yes.value
+        NO = DataEngining.boolean.no.value
         BUS_INTERACTION_OTHER = DataEngining.busInteractions.other.value
         BUS_INTERACTION_UNKNOWN = DataEngining.busInteractions.unknown_bus_interaction.value
         CROSSING_LOC_OTHER = DataEngining.crossingLocationRelativeToBus.other.value
         CROSSING_LOC_STOP_OTHER = DataEngining.crossingLocationRelativeToBusStop.other.value
         
-        # Rule 1: If Type of Bus Interaction is specified, Bus Interaction must be 'yes'
-        if row[BUS_INTERACTION] == OTHER and row[TYPE_BUS_INTERACTION] != BUS_INTERACTION_OTHER:
-            row[BUS_INTERACTION] = YES
+        if row[BUS_INTERACTION] == OTHER:
+            if [TYPE_BUS_INTERACTION] != BUS_INTERACTION_OTHER:
+                row[BUS_INTERACTION] = YES
+            else:
+                row[BUS_INTERACTION] = NO
         
-        # Rule 2: If Bus Interaction is 'yes' but Type is 'other', set Type to 'unknown_bus_interaction'
-        if row[TYPE_BUS_INTERACTION] == BUS_INTERACTION_OTHER and row[BUS_INTERACTION] != OTHER:
+        if row[BUS_PRESENCE] == OTHER:
+            if row[TYPE_BUS_INTERACTION] != BUS_INTERACTION_OTHER or row[BUS_INTERACTION] == YES or row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER:
+                row[BUS_PRESENCE] = YES
+            else:
+                row[BUS_PRESENCE] = NO
+
+        if row[TYPE_BUS_INTERACTION] == OTHER:
             if row[BUS_INTERACTION] == YES:
                 row[TYPE_BUS_INTERACTION] = BUS_INTERACTION_UNKNOWN
-        
-        # Rule 3: Bus Presence is 'yes' if any bus-related activity is indicated
-        if (row[BUS_INTERACTION] == YES or 
-            row[TYPE_BUS_INTERACTION] != BUS_INTERACTION_OTHER or 
-            row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER):
-            row[BUS_PRESENCE] = YES
-        
+           
         # Rule 4: Roadway Crossing is 'yes' if any crossing activity is indicated
         if (row[CROSSWALK_CROSSING] == YES or 
             row[CROSSING_NOTES] != OTHER or 
