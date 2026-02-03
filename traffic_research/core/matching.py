@@ -7,7 +7,26 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from .scoring import computeFeatureScores
 from config import EXCLUDED_FROM_ACCURACY
 
+def generateReferenceGraph(df0,df1,df2, timeThreshold, percentageThreshold, range_value):
+    row =[]
+    smallDFAB = df0 if len(df0) < len(df1) else df1
+    largeDFAB = df1 if len(df1) > len(df0) else df0
+    smallDFAC = df0 if len(df0) < len(df1) else df1
+    largeDFAC = df1 if len(df1) > len(df0) else df0
+    maxScoreAB,maxIndexAB = -1.0,-1
+    for index,row in smallDFAB.itertuples():
+        start_idx = max(0, index - range_value)
+        end_idx = min(len(largeDFAB), index + range_value + 1)
+        maxScoreAB,maxIndexAB = helper(row,largeDFAB,timeThreshold,percentageThreshold,start_idx,end_idx)
+    return None
 
+def helper(row,df,timeThreshold,percentageThreshold,start_idx,end_idx):
+    maxScore, maxIndex = -1.0, -1
+    for i in range(start_idx,end_idx):
+        score = computeFeatureScores(row, df.iloc[i], timeThreshold)
+        if score >= percentageThreshold and score > maxScore:
+            maxScore, maxIndex = score, i
+    return maxScore, maxIndex
 def generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold, range_value):
     """Generate reference DataFrame by matching rows across three dataframes.
     
