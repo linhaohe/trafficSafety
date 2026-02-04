@@ -24,4 +24,4 @@ def makeDummyTimeData(intend_to_cross_timestamp,crossing_start_time, crossing_en
 
 if __name__ == "__main__":
     computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
-    # performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
+    performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)

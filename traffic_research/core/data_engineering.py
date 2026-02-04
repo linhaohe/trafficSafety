@@ -101,7 +101,7 @@ class DataEngining:
     @staticmethod
     def load_csv(file_path):
         """Load and transpose CSV file, setting first row as column headers."""
-        df = pd.read_csv(file_path, header=None).transpose()
+        df = pd.read_csv(file_path, header=None,encoding='cp1252').transpose()
         df.columns = df.iloc[0]
         df = df.iloc[1:]
         df = df.loc[:, ~df.columns.duplicated()]
@@ -273,15 +273,19 @@ class DataEngining:
                 row[TYPE_BUS_INTERACTION] = BUS_INTERACTION_UNKNOWN
            
         # Rule 4: Roadway Crossing is 'yes' if any crossing activity is indicated
-        if (row[CROSSWALK_CROSSING] == YES or 
-            row[CROSSING_NOTES] != OTHER or 
-            row[CROSSING_START_TIME] > 0 or 
-            row[CROSSING_END_TIME] > 0 or 
-            row[CROSSING_LOC_REL_BUS_STOP] != CROSSING_LOC_STOP_OTHER or 
-            row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER or
-            row[FINISH_CROSSING_DURING_PEDESTRIAN_PHASE] == YES):
-            row[ROADWAY_CROSSING] = YES
-        
+        if row[ROADWAY_CROSSING] == OTHER:
+            if (row[CROSSWALK_CROSSING] == YES or 
+                row[CROSSING_NOTES] != OTHER or 
+                row[CROSSING_START_TIME] > 0 or 
+                row[CROSSING_END_TIME] > 0 or 
+                row[CROSSING_LOC_REL_BUS_STOP] != CROSSING_LOC_STOP_OTHER or 
+                row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER or
+                row[FINISH_CROSSING_DURING_PEDESTRIAN_PHASE] == YES):
+                row[ROADWAY_CROSSING] = YES
+            else:
+                row[ROADWAY_CROSSING] = NO
+                row[CROSSWALK_CROSSING] = NO
+            
         # Rule 5: If refuge island times are present, set Refuge Island and Crosswalk Crossing to 'yes'
         if row[REFUGE_ISLAND_START] > 0 and row[REFUGE_ISLAND_END] > 0:
             row[REFUGE_ISLAND] = YES
