@@ -7,26 +7,30 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from .scoring import computeFeatureScores
 from config import EXCLUDED_FROM_ACCURACY
 
-def generateReferenceGraph(df0,df1,df2, timeThreshold, percentageThreshold, range_value):
-    row =[]
-    smallDFAB = df0 if len(df0) < len(df1) else df1
-    largeDFAB = df1 if len(df1) > len(df0) else df0
-    smallDFAC = df0 if len(df0) < len(df1) else df1
-    largeDFAC = df1 if len(df1) > len(df0) else df0
-    maxScoreAB,maxIndexAB = -1.0,-1
-    for index,row in smallDFAB.itertuples():
-        start_idx = max(0, index - range_value)
-        end_idx = min(len(largeDFAB), index + range_value + 1)
-        maxScoreAB,maxIndexAB = helper(row,largeDFAB,timeThreshold,percentageThreshold,start_idx,end_idx)
+#assume range_value is user inputed value
+def generateReferenceGraph(currentDFIndex,dflist, timeThreshold, percentageThreshold, range_value):
+    #assume dflist is sorted by length
+    graph = {}
+    def helper(fromDF,toDF, timeThreshold, percentageThreshold, range_value):
+        for row in fromDF.itertuples():
+            start_idx = max(0, row.Index - range_value)
+            end_idx = min(len(toDF), row.Index + range_value + 1)
+            dict_as_key = {'dfName': fromDF.name, 'index': row.Index}
+            immutable_key = frozenset(dict_as_key.items())
+            for i in range(start_idx, end_idx):
+                score = computeFeatureScores(row, toDF.iloc[i], timeThreshold)
+                if score >= percentageThreshold:
+                    dict_as_key_to_add = {'dfName': toDF.name, 'index': i}
+                    immutable_key_to_add = frozenset(dict_as_key_to_add.items())
+                    if immutable_key not in graph:
+                        graph[immutable_key] = []
+                    if immutable_key_to_add not in graph:
+                        graph[immutable_key_to_add] = []
+                    graph[immutable_key].append({"toDF": toDF.name, "index": i, "score": score})
+                    graph[immutable_key_to_add].append({"toDF": fromDF.name, "index": row.Index, "score": score})
+                    
     return None
 
-def helper(row,df,timeThreshold,percentageThreshold,start_idx,end_idx):
-    maxScore, maxIndex = -1.0, -1
-    for i in range(start_idx,end_idx):
-        score = computeFeatureScores(row, df.iloc[i], timeThreshold)
-        if score >= percentageThreshold and score > maxScore:
-            maxScore, maxIndex = score, i
-    return maxScore, maxIndex
 def generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold, range_value):
     """Generate reference DataFrame by matching rows across three dataframes.
     
