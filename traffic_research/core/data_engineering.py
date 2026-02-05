@@ -101,7 +101,7 @@ class DataEngining:
     @staticmethod
     def load_csv(file_path):
         """Load and transpose CSV file, setting first row as column headers."""
-        df = pd.read_csv(file_path, header=None).transpose()
+        df = pd.read_csv(file_path, header=None,encoding='cp1252',low_memory=False).transpose()
         df.columns = df.iloc[0]
         df = df.iloc[1:]
         df = df.loc[:, ~df.columns.duplicated()]
