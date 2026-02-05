@@ -15,7 +15,7 @@ def computeTrafficData(fileList, accuracy, percentageThreshold, timeThreshold):
     dflist = generateDateFrameList(fileList)
     dflist = sorted(dflist, key=len)
     # Calculate range value based on dataframe length differences
-    range_value = dflist[-1].shape[0] - dflist[0].shape[0] + 2
+    range_value = dflist[-1].shape[0] - dflist[0].shape[0] + 3
     refDF = generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold, range_value)
     dfQualityControl = generateQualityControlDataFrame(refDF, dflist, accuracy, timeThreshold)
     dfQualityControl = dfQualityControl.transpose()

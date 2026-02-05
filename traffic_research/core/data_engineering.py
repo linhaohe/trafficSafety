@@ -283,14 +283,13 @@ class DataEngining:
                 row[FINISH_CROSSING_DURING_PEDESTRIAN_PHASE] == YES):
                 row[ROADWAY_CROSSING] = YES
             else:
-                row[ROADWAY_CROSSING] = NO
-                row[CROSSWALK_CROSSING] = NO
-            
+                row[ROADWAY_CROSSING] = NO            
         # Rule 5: If refuge island times are present, set Refuge Island and Crosswalk Crossing to 'yes'
         if row[REFUGE_ISLAND_START] > 0 and row[REFUGE_ISLAND_END] > 0:
             row[REFUGE_ISLAND] = YES
             row[CROSSWALK_CROSSING] = YES
-        
+        if row[CROSSWALK_CROSSING] == OTHER and row[ROADWAY_CROSSING] == NO:
+            row[CROSSWALK_CROSSING] = NO
         return row
 
     # ---------------- MAIN ROW PROCESSOR ----------------
