@@ -1,5 +1,7 @@
 """Quality control functions for generating and testing data quality."""
 
+from typing import Any
+import heapq
 import pandas as pd
 import sys
 import os
@@ -16,7 +18,10 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
         return compareParameters(row0, row1, row2, field, accuracy)
     
     def compareTime(field):
-        return compareTimeDistance(row0[field], row1[field], row2[field], accuracy, timeThreshold)
+        time0 = row0[field] if row0 is not None else -1
+        time1 = row1[field] if row1 is not None else -1
+        time2 = row2[field] if row2 is not None else -1
+        return compareTimeDistance(time0, time1, time2, accuracy, timeThreshold)
     
     def enumToStr(field, enumType, default=""):
         """Convert enum value to string with optional default for empty values."""  
@@ -117,6 +122,32 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
         "General Reviewer Notes": '0'
     }
 
+def generateQualityControlDataFramebyGraph(refGraph, dflist, accuracy, timeThreshold):
+    # for key, matches in refGraph.items():
+    df_dict = {}
+    rows = []
+    df_dict[dflist[0]['path']] = {'df': dflist[0]['df'], 'visted': set()}
+    df_dict[dflist[1]['path']] = {'df': dflist[1]['df'], 'visted': set()}
+    df_dict[dflist[2]['path']] = {'df': dflist[2]['df'], 'visted': set()}
+    for key,matches in refGraph.items():
+        from_dict = dict(key)
+        from_dfName = from_dict['dfName']
+        from_index = from_dict['index']   
+        if from_index in df_dict[from_dfName]['visted'] or len(matches) == 0:
+            continue
+        df_dict[from_dfName]['visted'].add(from_index)
+        row0 = df_dict[from_dfName]['df'].iloc[from_index]
+        row1 = None
+        row2 = None
+        
+        if len(matches) > 0:
+            row1 = df_dict[matches[0]['key']['dfName']]['df'].iloc[matches[0]['key']['index']]
+            df_dict[matches[0]['key']['dfName']]['visted'].add(matches[0]['key']['index'])
+        if len(matches) > 1:
+            row2 = df_dict[matches[1]['key']['dfName']]['df'].iloc[matches[1]['key']['index']]
+            df_dict[matches[1]['key']['dfName']]['visted'].add(matches[1]['key']['index'])
+        rows.append(constructRowDict(row0, row1, row2, from_index, accuracy, timeThreshold))
+    return pd.DataFrame(rows)
 
 def generateQualityControlDataFrame(refDF, dflist, accuracy, timeThreshold):
     """Generate quality control DataFrame from reference DataFrame and dataframes."""

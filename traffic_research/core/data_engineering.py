@@ -273,20 +273,27 @@ class DataEngining:
                 row[TYPE_BUS_INTERACTION] = BUS_INTERACTION_UNKNOWN
            
         # Rule 4: Roadway Crossing is 'yes' if any crossing activity is indicated
-        if (row[CROSSWALK_CROSSING] == YES or 
-            row[CROSSING_NOTES] != OTHER or 
-            row[CROSSING_START_TIME] > 0 or 
-            row[CROSSING_END_TIME] > 0 or 
-            row[CROSSING_LOC_REL_BUS_STOP] != CROSSING_LOC_STOP_OTHER or 
-            row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER or
-            row[FINISH_CROSSING_DURING_PEDESTRIAN_PHASE] == YES):
-            row[ROADWAY_CROSSING] = YES
-        
+        if row[ROADWAY_CROSSING] == OTHER:
+            if (row[CROSSWALK_CROSSING] == YES or 
+                row[CROSSING_NOTES] != OTHER or 
+                row[CROSSING_START_TIME] > 0 or 
+                row[CROSSING_END_TIME] > 0 or 
+                row[CROSSING_LOC_REL_BUS_STOP] != CROSSING_LOC_STOP_OTHER or 
+                row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER or
+                row[FINISH_CROSSING_DURING_PEDESTRIAN_PHASE] == YES):
+                row[ROADWAY_CROSSING] = YES
+            else:
+                row[ROADWAY_CROSSING] = NO            
         # Rule 5: If refuge island times are present, set Refuge Island and Crosswalk Crossing to 'yes'
         if row[REFUGE_ISLAND_START] > 0 and row[REFUGE_ISLAND_END] > 0:
-            row[REFUGE_ISLAND] = YES
-            row[CROSSWALK_CROSSING] = YES
-        
+            if row[REFUGE_ISLAND] == OTHER:
+                row[REFUGE_ISLAND] = YES
+            if row[CROSSWALK_CROSSING] == OTHER:
+                row[CROSSWALK_CROSSING] = YES
+            if row[ROADWAY_CROSSING] == OTHER:
+                row[ROADWAY_CROSSING] = YES
+        if row[CROSSWALK_CROSSING] == OTHER and row[ROADWAY_CROSSING] == NO:
+            row[CROSSWALK_CROSSING] = NO
         return row
 
     # ---------------- MAIN ROW PROCESSOR ----------------
@@ -410,7 +417,7 @@ def generateDateFrameList(path_urls):
         load_df = DataEngining.load_csv(path)
         load_df = load_df.apply(DataEngining.dataEnginingRow, axis=1)
         load_df = load_df.astype(DTYPE_MAPPING)
-        df_list.append(load_df)
+        df_list.append({"path" : path, "df":load_df})
     return df_list
 
 

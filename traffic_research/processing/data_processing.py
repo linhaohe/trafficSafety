@@ -5,8 +5,8 @@ import pandas as pd
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from traffic_research.core.data_engineering import generateDateFrameList, generateDateFrame
-from traffic_research.core.matching import generateReferenceDataFrame
-from traffic_research.processing.quality_control import generateQualityControlDataFrame, accuracyTest
+from traffic_research.core.matching import exportGraphToCsv, generateReferenceDataFrame, generateReferenceGraph
+from traffic_research.processing.quality_control import generateQualityControlDataFrame, accuracyTest, generateQualityControlDataFramebyGraph
 from traffic_research.core.models import AccuracyScore
 
 
@@ -30,7 +30,11 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
         if filename.endswith(".csv")
     ]
     
-    dfQualityControl, refDF = computeTrafficData(fileList, accuracy, percentageThreshold, timeThreshold)
+    # dfQualityControl, refDF = computeTrafficData(fileList, accuracy, percentageThreshold, timeThreshold)
+    dflist = generateDateFrameList(fileList)
+    dflist = sorted(dflist, key=lambda x: x["df"].shape[0])
+    graph = generateReferenceGraph(dflist, timeThreshold=6, percentageThreshold=0.65, range_value=2)
+    dfQualityControl = generateQualityControlDataFramebyGraph(graph, dflist, accuracy, timeThreshold)
     accuracy.appendFileAccuracy(os.path.basename(filePath), accuracy.getAccuracy())
     accuracy.reset()
     
@@ -40,11 +44,8 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
         index=True, 
         header=False
     )
-    refDF.to_csv(
-        os.path.join(outputFolderPath, folderName) + '+refDF.csv', 
-        index=True, 
-        header=True
-    )
+    exportGraphToCsv(graph, os.path.join(outputFolderPath, folderName) + '_graph.csv')
+
 
 
 def computeDataFolderToCSV(resourceFolderPath, outputFolderPath, percentageThreshold, timeThreshold):

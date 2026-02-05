@@ -8,28 +8,74 @@ from .scoring import computeFeatureScores
 from config import EXCLUDED_FROM_ACCURACY
 
 #assume range_value is user inputed value
-def generateReferenceGraph(currentDFIndex,dflist, timeThreshold, percentageThreshold, range_value):
-    #assume dflist is sorted by length
+def generateReferenceGraph(dflist, timeThreshold, percentageThreshold, range_value):
+    """Build a graph of best matches between dflist[0], dflist[1], dflist[2].
+    Assumes dflist is sorted by length (shortest first) and each df has default index 0..n-1.
+    A (dfName, index) used as a target in one edge is never reused as a target elsewhere."""
     graph = {}
-    def helper(fromDF,toDF, timeThreshold, percentageThreshold, range_value):
+    used_targets = set()  # (path, index) already used as a match target
+
+    def helper(fromDFTuple, toDFTuple, timeThreshold, percentageThreshold, range_value, used_targets):
+        fromDF = fromDFTuple["df"]
+        toDF = toDFTuple["df"]
+        fromDFName = fromDFTuple["path"]
+        toDFName = toDFTuple["path"]
+        shockWave = len(toDF) - len(fromDF) + range_value
+
         for row in fromDF.itertuples():
-            start_idx = max(0, row.Index - range_value)
-            end_idx = min(len(toDF), row.Index + range_value + 1)
-            dict_as_key = {'dfName': fromDF.name, 'index': row.Index}
-            immutable_key = frozenset(dict_as_key.items())
+            start_idx = max(0, row.Index - shockWave)
+            end_idx = min(len(toDF), row.Index + shockWave + 1)
+            maxScore, maxIndex = 0, -1
             for i in range(start_idx, end_idx):
-                score = computeFeatureScores(row, toDF.iloc[i], timeThreshold)
-                if score >= percentageThreshold:
-                    dict_as_key_to_add = {'dfName': toDF.name, 'index': i}
-                    immutable_key_to_add = frozenset(dict_as_key_to_add.items())
-                    if immutable_key not in graph:
-                        graph[immutable_key] = []
-                    if immutable_key_to_add not in graph:
-                        graph[immutable_key_to_add] = []
-                    graph[immutable_key].append({"toDF": toDF.name, "index": i, "score": score})
-                    graph[immutable_key_to_add].append({"toDF": fromDF.name, "index": row.Index, "score": score})
-                    
-    return None
+                if (toDFName, i) in used_targets:
+                    continue
+                score = computeFeatureScores(fromDF.iloc[row.Index], toDF.iloc[i], timeThreshold)
+                if score >= percentageThreshold and score > maxScore:
+                    maxScore, maxIndex = score, i
+            if maxScore >= percentageThreshold and maxIndex >= 0:
+                used_targets.add((toDFName, maxIndex))
+                dict_as_key = {'dfName': fromDFName, 'index': row.Index}
+                immutable_key = frozenset(dict_as_key.items())
+                dict_as_key_to_add = {'dfName': toDFName, 'index': maxIndex}
+                # immutable_key_to_add = frozenset(dict_as_key_to_add.items())
+                if immutable_key not in graph:
+                    graph[immutable_key] = []
+                # if immutable_key_to_add not in graph:
+                #     graph[immutable_key_to_add] = []
+                graph[immutable_key].append({"key": dict_as_key_to_add, "score": maxScore})
+                # graph[immutable_key_to_add].append({"key": dict_as_key, "score": maxScore})
+
+    helper(dflist[0], dflist[1], timeThreshold, percentageThreshold, range_value, used_targets)
+    helper(dflist[0], dflist[2], timeThreshold, percentageThreshold, range_value, used_targets)
+    helper(dflist[1], dflist[2], timeThreshold, percentageThreshold, range_value, used_targets)
+    return graph
+
+
+def exportGraphToCsv(graph, csv_path):
+    """Export the reference graph to a CSV with one row per node: from_dfName, from_index, then to_dfName_1, to_index_1, score_1, to_dfName_2, ... for all matches in the same row. dfName is stored as filename only (e.g. Alex.csv)."""
+    def _basename(path):
+        return os.path.basename(path) if path else ""
+    max_matches = max(len(matches) for _, matches in graph.items()) if graph else 0
+    rows = []
+    for key, matches in graph.items():
+        from_node = dict(key)
+        from_dfName = _basename(from_node.get("dfName", ""))
+        from_index = from_node.get("index", -1)
+        row = {"from_dfName": from_dfName, "from_index": from_index}
+        for i, m in enumerate(matches):
+            to_node = m["key"]
+            row[f"to_dfName_{i+1}"] = _basename(to_node.get("dfName", ""))
+            row[f"to_index_{i+1}"] = to_node.get("index", -1)
+            row[f"score_{i+1}"] = m["score"]
+        for i in range(len(matches), max_matches):
+            row[f"to_dfName_{i+1}"] = ""
+            row[f"to_index_{i+1}"] = ""
+            row[f"score_{i+1}"] = ""
+        rows.append(row)
+    df = pd.DataFrame(rows)
+    df = df.sort_values(by=["from_dfName", "from_index"])
+    df.to_csv(csv_path, index=False)
+
 
 def generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold, range_value):
     """Generate reference DataFrame by matching rows across three dataframes.
@@ -165,9 +211,9 @@ def compareParameters(row0, row1, row2, fieldName, accuracy):
     Note:
         Certain parameters are excluded from accuracy tracking.
     """
-    value_a = row0[fieldName]
-    value_b = row1[fieldName]
-    value_c = row2[fieldName]
+    value_a = row0[fieldName] if row0 is not None else ""
+    value_b = row1[fieldName]  if row1 is not None else ""
+    value_c = row2[fieldName] if row2 is not None else ""
     
     # Extract similarity scores
     # score_ab = row0['score'][0]  # A to B similarity score

@@ -7,8 +7,11 @@ from config import (
 )
 from traffic_research.processing.data_processing import computeDataFolderToCSV, performAccuracyTest
 from traffic_research.graphing.graphing import generateGraphDataPercentage, generateGraphDataTime, graphData
-from traffic_research.core import calculateTimeScore, computeTimeScore
+from traffic_research.core import AccuracyScore, calculateTimeScore, computeTimeScore, generateDateFrameList
+from traffic_research.core.matching import generateReferenceGraph, exportGraphToCsv
 import pandas as pd
+
+from traffic_research.processing.quality_control import generateQualityControlDataFramebyGraph
 
 def makeDummyTimeData(intend_to_cross_timestamp,crossing_start_time, crossing_end_time, bus_stop_arrival_time, bus_stop_departure_time):
     time = {
@@ -22,6 +25,36 @@ def makeDummyTimeData(intend_to_cross_timestamp,crossing_start_time, crossing_en
     }
     return pd.DataFrame(time, index=[0])
 
+def printGraph(graph):
+    print("\n" + "="*80)
+    print("REFERENCE GRAPH")
+    print("="*80)
+    for key, matches in graph.items():
+        # Convert frozenset key back to dictionary for readability
+        key_dict = dict(key)
+        print(f"\nNode: {key_dict.get('dfName', 'Unknown')} - Index {key_dict.get('index', 'Unknown')}")
+        print(f"  Matches ({len(matches)}):")
+        for match in matches:
+            print(f"    -> {match['key']} (score: {match['score']:.4f})")
+    print("\n" + "="*80)
+    print(f"Total nodes in graph: {len(graph)}")
+    print("="*80 + "\n")
+    
 if __name__ == "__main__":
-    # computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
-    performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
+    # fileList = ['./resource/inputData/Northampton_Court_House_V43/Alex.csv','./resource/inputData/Northampton_Court_House_V43/Tolu.csv','./resource/inputData/Northampton_Court_House_V43/Primah.csv']
+    # dflist = generateDateFrameList(fileList)
+    # dflist = sorted(dflist, key=lambda x: x["df"].shape[0])
+    # accuracy = AccuracyScore()
+    # graph = generateReferenceGraph(dflist, timeThreshold=6, percentageThreshold=0.65, range_value=2)
+    # exportGraphToCsv(graph, './output/Northampton_Court_House_V43_graph.csv')
+    # printGraph(graph)
+    # dfresult = generateQualityControlDataFramebyGraph(graph, dflist, accuracy, timeThreshold=6).sort_values(by='User Count')
+    # dfresult.transpose().to_csv(
+    #     './output/Northampton_Court_House_V43_result.csv', 
+    #     index=True, 
+    #     header=False
+    # )
+    # # printGraph(graph)
+    
+    computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
+    # performAccuracyTest('./output/Northampton_Court_House_V43_result.csv', NORTHAMPTON_HUMAN_QC)
