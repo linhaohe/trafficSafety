@@ -288,8 +288,6 @@ class DataEngining:
         if row[REFUGE_ISLAND_START] > 0 and row[REFUGE_ISLAND_END] > 0:
             if row[REFUGE_ISLAND] == OTHER:
                 row[REFUGE_ISLAND] = YES
-            if row[CROSSWALK_CROSSING] == OTHER:
-                row[CROSSWALK_CROSSING] = YES
             if row[ROADWAY_CROSSING] == OTHER:
                 row[ROADWAY_CROSSING] = YES
         if row[CROSSWALK_CROSSING] == OTHER and row[ROADWAY_CROSSING] == NO:

@@ -7,11 +7,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from .scoring import computeFeatureScores
 from config import EXCLUDED_FROM_ACCURACY
 
-#assume range_value is user inputed value
-def generateReferenceGraph(dflist, timeThreshold, percentageThreshold, range_value):
-    """Build a graph of best matches between dflist[0], dflist[1], dflist[2].
-    Assumes dflist is sorted by length (shortest first) and each df has default index 0..n-1.
-    A (dfName, index) used as a target in one edge is never reused as a target elsewhere."""
+# assume range_value is user inputed value
+def generateReferenceGraph(dflist, timeThreshold, percentageThreshold, range_value=2):
     graph = {}
     used_targets = set()  # (path, index) already used as a match target
 
@@ -23,27 +20,25 @@ def generateReferenceGraph(dflist, timeThreshold, percentageThreshold, range_val
         shockWave = len(toDF) - len(fromDF) + range_value
 
         for row in fromDF.itertuples():
-            start_idx = max(0, row.Index - shockWave)
-            end_idx = min(len(toDF), row.Index + shockWave + 1)
-            maxScore, maxIndex = 0, -1
+            from_idx = row.Index
+            from_row = fromDF.iloc[from_idx]  # cache row once per from-row
+            start_idx = max(0, from_idx - shockWave)
+            end_idx = min(len(toDF), from_idx + shockWave + 1)
+            maxScore, maxIndex = 0.0, -1
             for i in range(start_idx, end_idx):
                 if (toDFName, i) in used_targets:
                     continue
-                score = computeFeatureScores(fromDF.iloc[row.Index], toDF.iloc[i], timeThreshold)
+                score = computeFeatureScores(from_row, toDF.iloc[i], timeThreshold)
                 if score >= percentageThreshold and score > maxScore:
                     maxScore, maxIndex = score, i
+                    if maxScore >= 1.0:
+                        break  # perfect match, no need to check rest of window
             if maxScore >= percentageThreshold and maxIndex >= 0:
                 used_targets.add((toDFName, maxIndex))
-                dict_as_key = {'dfName': fromDFName, 'index': row.Index}
-                immutable_key = frozenset(dict_as_key.items())
-                dict_as_key_to_add = {'dfName': toDFName, 'index': maxIndex}
-                # immutable_key_to_add = frozenset(dict_as_key_to_add.items())
-                if immutable_key not in graph:
-                    graph[immutable_key] = []
-                # if immutable_key_to_add not in graph:
-                #     graph[immutable_key_to_add] = []
-                graph[immutable_key].append({"key": dict_as_key_to_add, "score": maxScore})
-                # graph[immutable_key_to_add].append({"key": dict_as_key, "score": maxScore})
+            key = (fromDFName, from_idx)
+            if key not in graph:
+                graph[key] = []
+            graph[key].append({"key": {"dfName": toDFName, "index": maxIndex}, "score": maxScore})
 
     helper(dflist[0], dflist[1], timeThreshold, percentageThreshold, range_value, used_targets)
     helper(dflist[0], dflist[2], timeThreshold, percentageThreshold, range_value, used_targets)
@@ -58,9 +53,13 @@ def exportGraphToCsv(graph, csv_path):
     max_matches = max(len(matches) for _, matches in graph.items()) if graph else 0
     rows = []
     for key, matches in graph.items():
-        from_node = dict(key)
-        from_dfName = _basename(from_node.get("dfName", ""))
-        from_index = from_node.get("index", -1)
+        if isinstance(key, tuple):
+            from_dfName = _basename(key[0])
+            from_index = key[1]
+        else:
+            from_node = dict(key)
+            from_dfName = _basename(from_node.get("dfName", ""))
+            from_index = from_node.get("index", -1)
         row = {"from_dfName": from_dfName, "from_index": from_index}
         for i, m in enumerate(matches):
             to_node = m["key"]
@@ -73,7 +72,7 @@ def exportGraphToCsv(graph, csv_path):
             row[f"score_{i+1}"] = ""
         rows.append(row)
     df = pd.DataFrame(rows)
-    df = df.sort_values(by=["from_dfName", "from_index"])
+    # df = df.sort_values(by=["from_dfName", "from_index"])
     df.to_csv(csv_path, index=False)
 
 

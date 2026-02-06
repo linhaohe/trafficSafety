@@ -30,9 +30,13 @@ def printGraph(graph):
     print("REFERENCE GRAPH")
     print("="*80)
     for key, matches in graph.items():
-        # Convert frozenset key back to dictionary for readability
-        key_dict = dict(key)
-        print(f"\nNode: {key_dict.get('dfName', 'Unknown')} - Index {key_dict.get('index', 'Unknown')}")
+        if isinstance(key, tuple):
+            df_name, idx = key[0], key[1]
+        else:
+            key_dict = dict(key)
+            df_name = key_dict.get('dfName', 'Unknown')
+            idx = key_dict.get('index', 'Unknown')
+        print(f"\nNode: {df_name} - Index {idx}")
         print(f"  Matches ({len(matches)}):")
         for match in matches:
             print(f"    -> {match['key']} (score: {match['score']:.4f})")
@@ -41,20 +45,6 @@ def printGraph(graph):
     print("="*80 + "\n")
     
 if __name__ == "__main__":
-    # fileList = ['./resource/inputData/Northampton_Court_House_V43/Alex.csv','./resource/inputData/Northampton_Court_House_V43/Tolu.csv','./resource/inputData/Northampton_Court_House_V43/Primah.csv']
-    # dflist = generateDateFrameList(fileList)
-    # dflist = sorted(dflist, key=lambda x: x["df"].shape[0])
-    # accuracy = AccuracyScore()
-    # graph = generateReferenceGraph(dflist, timeThreshold=6, percentageThreshold=0.65, range_value=2)
-    # exportGraphToCsv(graph, './output/Northampton_Court_House_V43_graph.csv')
-    # printGraph(graph)
-    # dfresult = generateQualityControlDataFramebyGraph(graph, dflist, accuracy, timeThreshold=6).sort_values(by='User Count')
-    # dfresult.transpose().to_csv(
-    #     './output/Northampton_Court_House_V43_result.csv', 
-    #     index=True, 
-    #     header=False
-    # )
-    # # printGraph(graph)
     
     computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
-    # performAccuracyTest('./output/Northampton_Court_House_V43_result.csv', NORTHAMPTON_HUMAN_QC)
+    performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)

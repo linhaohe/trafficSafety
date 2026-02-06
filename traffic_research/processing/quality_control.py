@@ -123,29 +123,47 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     }
 
 def generateQualityControlDataFramebyGraph(refGraph, dflist, accuracy, timeThreshold):
-    # for key, matches in refGraph.items():
-    df_dict = {}
+    """Build QC rows from refGraph by resolving each node to (row0, row1?, row2?) and calling constructRowDict."""
+    paths = [dflist[i]["path"] for i in range(3)]
+    dfs = [dflist[i]["df"] for i in range(3)]
+    path_to_idx = {p: i for i, p in enumerate(paths)}
+    visited = [set(), set(), set()]
     rows = []
-    df_dict[dflist[0]['path']] = {'df': dflist[0]['df'], 'visted': set()}
-    df_dict[dflist[1]['path']] = {'df': dflist[1]['df'], 'visted': set()}
-    df_dict[dflist[2]['path']] = {'df': dflist[2]['df'], 'visted': set()}
-    for key,matches in refGraph.items():
-        from_dict = dict(key)
-        from_dfName = from_dict['dfName']
-        from_index = from_dict['index']   
-        if from_index in df_dict[from_dfName]['visted'] or len(matches) == 0:
+
+    for key, matches in refGraph.items():
+        if isinstance(key, tuple):
+            from_dfName, from_index = key[0], key[1]
+        else:
+            from_dict = dict(key)
+            from_dfName = from_dict["dfName"]
+            from_index = from_dict["index"]
+        from_idx = path_to_idx[from_dfName]
+        if from_index in visited[from_idx] or len(matches) == 0:
             continue
-        df_dict[from_dfName]['visted'].add(from_index)
-        row0 = df_dict[from_dfName]['df'].iloc[from_index]
+        visited[from_idx].add(from_index)
+
+        # Unpack match keys once; -1 index means no match
+        m0_key = matches[0]["key"] if len(matches) > 0 else None
+        m0_score = matches[0]["score"] if len(matches) > 0 else -1
+        m1_key = matches[1]["key"] if len(matches) > 1 else None
+        m1_score = matches[1]["score"] if len(matches) > 1 else -1
+
+        valid_0 = m0_key is not None and m0_score > -1 and m0_key["index"] >= 0 and m0_key["index"] not in visited[path_to_idx[m0_key["dfName"]]]
+        valid_1 = m1_key is not None and m1_score > -1 and m1_key["index"] >= 0 and m1_key["index"] not in visited[path_to_idx[m1_key["dfName"]]]
+        if not (valid_0 or valid_1):
+            continue
+
+        row0 = dfs[from_idx].iloc[from_index]
         row1 = None
         row2 = None
-        
-        if len(matches) > 0:
-            row1 = df_dict[matches[0]['key']['dfName']]['df'].iloc[matches[0]['key']['index']]
-            df_dict[matches[0]['key']['dfName']]['visted'].add(matches[0]['key']['index'])
-        if len(matches) > 1:
-            row2 = df_dict[matches[1]['key']['dfName']]['df'].iloc[matches[1]['key']['index']]
-            df_dict[matches[1]['key']['dfName']]['visted'].add(matches[1]['key']['index'])
+        if valid_0:
+            idx0 = path_to_idx[m0_key["dfName"]]
+            row1 = dfs[idx0].iloc[m0_key["index"]]
+            visited[idx0].add(m0_key["index"])
+        if valid_1:
+            idx1 = path_to_idx[m1_key["dfName"]]
+            row2 = dfs[idx1].iloc[m1_key["index"]]
+            visited[idx1].add(m1_key["index"])
         rows.append(constructRowDict(row0, row1, row2, from_index, accuracy, timeThreshold))
     return pd.DataFrame(rows)
 

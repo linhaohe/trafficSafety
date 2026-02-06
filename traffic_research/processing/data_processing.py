@@ -31,20 +31,21 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
     ]
     
     # dfQualityControl, refDF = computeTrafficData(fileList, accuracy, percentageThreshold, timeThreshold)
+    # print("Processing folder: ", filePath)
+    folderName = os.path.basename(filePath)
     dflist = generateDateFrameList(fileList)
     dflist = sorted(dflist, key=lambda x: x["df"].shape[0])
-    graph = generateReferenceGraph(dflist, timeThreshold=6, percentageThreshold=0.65, range_value=2)
-    dfQualityControl = generateQualityControlDataFramebyGraph(graph, dflist, accuracy, timeThreshold)
+    graph = generateReferenceGraph(dflist, timeThreshold=timeThreshold, percentageThreshold=percentageThreshold)
+    exportGraphToCsv(graph, os.path.join(outputFolderPath, folderName) + '_graph.csv')
+    dfQualityControl = generateQualityControlDataFramebyGraph(graph, dflist, accuracy, timeThreshold).transpose()
     accuracy.appendFileAccuracy(os.path.basename(filePath), accuracy.getAccuracy())
     accuracy.reset()
     
-    folderName = os.path.basename(filePath)
     dfQualityControl.to_csv(
         os.path.join(outputFolderPath, folderName) + '.csv', 
         index=True, 
         header=False
     )
-    exportGraphToCsv(graph, os.path.join(outputFolderPath, folderName) + '_graph.csv')
 
 
 
