@@ -8,7 +8,7 @@ from config import (
 from traffic_research.processing.data_processing import computeDataFolderToCSV, performAccuracyTest
 from traffic_research.graphing.graphing import generateGraphDataPercentage, generateGraphDataTime, graphData
 from traffic_research.core import AccuracyScore, calculateTimeScore, computeTimeScore, generateDateFrameList
-from traffic_research.core.matching import generateReferenceGraph, exportGraphToCsv
+from traffic_research.core.matching import compareParameters, generateReferenceGraph, exportGraphToCsv
 import pandas as pd
 
 from traffic_research.processing.quality_control import generateQualityControlDataFramebyGraph
@@ -45,6 +45,12 @@ def printGraph(graph):
     print("="*80 + "\n")
     
 if __name__ == "__main__":
-    
+    # compareParameters(row0, row1, row2, fieldName, accuracy)
+    # row0 = {'Crosswalk Crossing': 'Yes'}
+    # row1 = {'Crosswalk Crossing': 'No'}
+    # row2 = {'Crosswalk Crossing': 'Yes'}
+    # fieldName = 'Crosswalk Crossing'
+    # accuracy = AccuracyScore()
+    # print(compareParameters(row0, row1, row2, fieldName, accuracy))
     computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
     performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
