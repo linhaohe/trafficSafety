@@ -19,11 +19,10 @@ def generateReferenceGraph(dflist, timeThreshold, percentageThreshold, range_val
         toDFName = toDFTuple["path"]
         shockWave = len(toDF) - len(fromDF) + range_value
 
-        for row in fromDF.itertuples():
-            from_idx = row.Index
-            from_row = fromDF.iloc[from_idx]  # cache row once per from-row
-            start_idx = max(0, from_idx - shockWave)
-            end_idx = min(len(toDF), from_idx + shockWave + 1)
+        for pos in range(len(fromDF)):
+            from_row = fromDF.iloc[pos]  # cache row once per from-row; use position for iloc
+            start_idx = max(0, pos - shockWave)
+            end_idx = min(len(toDF), pos + shockWave + 1)
             maxScore, maxIndex = 0.0, -1
             for i in range(start_idx, end_idx):
                 if (toDFName, i) in used_targets:
@@ -35,7 +34,7 @@ def generateReferenceGraph(dflist, timeThreshold, percentageThreshold, range_val
                         break  # perfect match, no need to check rest of window
             if maxScore >= percentageThreshold and maxIndex >= 0:
                 used_targets.add((toDFName, maxIndex))
-            key = (fromDFName, from_idx)
+            key = (fromDFName, pos)
             if key not in graph:
                 graph[key] = []
             graph[key].append({"key": {"dfName": toDFName, "index": maxIndex}, "score": maxScore})

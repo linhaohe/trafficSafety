@@ -24,20 +24,71 @@ def computeTrafficData(fileList, accuracy, percentageThreshold, timeThreshold):
 
 def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, timeThreshold):
     """Helper function to process a single folder and generate CSV outputs."""
+    
+    def generateQCDataFrame(graph,dflist):
+        return generateQualityControlDataFramebyGraph(graph, dflist, accuracy, timeThreshold)
+    
     fileList = [
         os.path.join(filePath, filename)
         for filename in os.listdir(filePath)
         if filename.endswith(".csv")
     ]
     
-    # dfQualityControl, refDF = computeTrafficData(fileList, accuracy, percentageThreshold, timeThreshold)
-    # print("Processing folder: ", filePath)
     folderName = os.path.basename(filePath)
     dflist = generateDateFrameList(fileList)
-    dflist = sorted(dflist, key=lambda x: x["df"].shape[0])
-    graph = generateReferenceGraph(dflist, timeThreshold=timeThreshold, percentageThreshold=percentageThreshold)
-    exportGraphToCsv(graph, os.path.join(outputFolderPath, folderName) + '_graph.csv')
-    dfQualityControl = generateQualityControlDataFramebyGraph(graph, dflist, accuracy, timeThreshold).transpose()
+    dfNoneBusUserCrossing = []
+    dfBusUserCrossing = []
+    dfBusNotCrossing = []
+    for df in dflist:
+        dfNoneBusUserCrossingRow = {
+            'path': df['path'],
+            'df': df['df'][df['df']['Bus Interaction'] == 0],
+        }
+        dfBusUserCrossingRow = {
+            'path': df['path'],
+            'df': df['df'][(df['df']['Bus Interaction'] == 1) & (df['df']['Roadway Crossing'] == 1)],
+        }
+        dfBusNotCrossingRow = {
+            'path': df['path'],
+            'df': df['df'][(df['df']['Bus Interaction'] == 1) & (df['df']['Roadway Crossing'] == 0)],
+        }
+        dfNoneBusUserCrossing.append(dfNoneBusUserCrossingRow)
+        dfBusUserCrossing.append(dfBusUserCrossingRow)
+        dfBusNotCrossing.append(dfBusNotCrossingRow)
+    for df in dfNoneBusUserCrossing:
+        df['df'] = df['df'].sort_values(by=['Crossing Start Time'], inplace=False)
+    #     df['df'].transpose().to_csv(
+    #     os.path.join(outputFolderPath, os.path.basename(df['path'])) + '.csv', 
+    #     index=True, 
+    #     header=False
+    # )
+        
+    for df in dfBusUserCrossing:
+        df['df'] = df['df'].sort_values(by=['Crossing Start Time'], inplace=False)
+    for df in dfBusNotCrossing:
+        df['df'] = df['df'].sort_values(by=['Bus Stop Arrival Time'], inplace=False)
+    
+    
+    dfNoneBusUserCrossing = sorted(dfNoneBusUserCrossing, key=lambda x: x["df"].shape[0])
+    dfBusUserCrossing = sorted(dfBusUserCrossing, key=lambda x: x["df"].shape[0])
+    dfBusNotCrossing = sorted(dfBusNotCrossing, key=lambda x: x["df"].shape[0])
+    
+    dfNoneBusUserCrossingGraph = generateReferenceGraph(dfNoneBusUserCrossing, timeThreshold=timeThreshold, percentageThreshold=percentageThreshold)
+    dfNoneBusUserCrossingGraphQC = generateQCDataFrame(dfNoneBusUserCrossingGraph, dfNoneBusUserCrossing)
+    
+    dfBusUserCrossingGraph = generateReferenceGraph(dfBusUserCrossing, timeThreshold=timeThreshold, percentageThreshold=percentageThreshold)
+    dfBusUserCrossingGraphQC = generateQCDataFrame(dfBusUserCrossingGraph, dfBusUserCrossing)
+    
+    dfBusNotCrossingGraph = generateReferenceGraph(dfBusNotCrossing, timeThreshold=timeThreshold, percentageThreshold=percentageThreshold)
+    dfBusNotCrossingGraphQC = generateQCDataFrame(dfBusNotCrossingGraph, dfBusNotCrossing)
+    
+    dfQualityControl = pd.concat(
+        [dfNoneBusUserCrossingGraphQC, dfBusUserCrossingGraphQC, dfBusNotCrossingGraphQC],
+        ignore_index=False).transpose()
+    
+    exportGraphToCsv(dfNoneBusUserCrossingGraph, os.path.join(outputFolderPath, folderName) + 'NoneBusUserCrossing_graph.csv')
+    exportGraphToCsv(dfBusUserCrossingGraph, os.path.join(outputFolderPath, folderName) + 'BusUserCrossing_graph.csv')
+    exportGraphToCsv(dfBusNotCrossingGraph, os.path.join(outputFolderPath, folderName) + 'BusNotCrossing_graph.csv')
     accuracy.appendFileAccuracy(os.path.basename(filePath), accuracy.getAccuracy())
     accuracy.reset()
     

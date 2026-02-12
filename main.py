@@ -45,12 +45,6 @@ def printGraph(graph):
     print("="*80 + "\n")
     
 if __name__ == "__main__":
-    # compareParameters(row0, row1, row2, fieldName, accuracy)
-    # row0 = {'Crosswalk Crossing': 'Yes'}
-    # row1 = {'Crosswalk Crossing': 'No'}
-    # row2 = {'Crosswalk Crossing': 'Yes'}
-    # fieldName = 'Crosswalk Crossing'
-    # accuracy = AccuracyScore()
-    # print(compareParameters(row0, row1, row2, fieldName, accuracy))
+
     computeDataFolderToCSV(INPUT_DATA_PATH, OUTPUT_PATH, percentageThreshold=0.65, timeThreshold=6)
     performAccuracyTest(NORTHAMPTON_OUTPUT, NORTHAMPTON_HUMAN_QC)
