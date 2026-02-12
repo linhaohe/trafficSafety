@@ -73,13 +73,28 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
     dfBusUserCrossing = sorted(dfBusUserCrossing, key=lambda x: x["df"].shape[0])
     dfBusNotCrossing = sorted(dfBusNotCrossing, key=lambda x: x["df"].shape[0])
     
-    dfNoneBusUserCrossingGraph = generateReferenceGraph(dfNoneBusUserCrossing, timeThreshold=timeThreshold, percentageThreshold=percentageThreshold)
+    dfNoneBusUserCrossingGraph = generateReferenceGraph(
+        dfNoneBusUserCrossing,
+        timeThreshold=timeThreshold,
+        percentageThreshold=percentageThreshold,
+        timeColumn="Crossing Start Time",
+    )
     dfNoneBusUserCrossingGraphQC = generateQCDataFrame(dfNoneBusUserCrossingGraph, dfNoneBusUserCrossing)
     
-    dfBusUserCrossingGraph = generateReferenceGraph(dfBusUserCrossing, timeThreshold=timeThreshold, percentageThreshold=percentageThreshold)
+    dfBusUserCrossingGraph = generateReferenceGraph(
+        dfBusUserCrossing,
+        timeThreshold=timeThreshold,
+        percentageThreshold=percentageThreshold,
+        timeColumn="Crossing Start Time",
+    )
     dfBusUserCrossingGraphQC = generateQCDataFrame(dfBusUserCrossingGraph, dfBusUserCrossing)
     
-    dfBusNotCrossingGraph = generateReferenceGraph(dfBusNotCrossing, timeThreshold=timeThreshold, percentageThreshold=percentageThreshold)
+    dfBusNotCrossingGraph = generateReferenceGraph(
+        dfBusNotCrossing,
+        timeThreshold=timeThreshold,
+        percentageThreshold=percentageThreshold,
+        timeColumn="Bus Stop Arrival Time",
+    )
     dfBusNotCrossingGraphQC = generateQCDataFrame(dfBusNotCrossingGraph, dfBusNotCrossing)
     
     dfQualityControl = pd.concat(

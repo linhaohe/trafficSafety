@@ -8,40 +8,117 @@ from .scoring import computeFeatureScores
 from config import EXCLUDED_FROM_ACCURACY
 
 # assume range_value is user inputed value
-def generateReferenceGraph(dflist, timeThreshold, percentageThreshold, range_value=2):
+def generateReferenceGraph(dflist, timeThreshold, percentageThreshold, timeColumn):
+    """
+    Generate a reference graph matching rows across three dataframes.
+
+    Each df in dflist['df'] is assumed to be sorted by the same time column
+    (passed in as timeColumn). Matching is restricted to rows in the target
+    dataframe whose time lies in [targetTime - timeThreshold, targetTime + timeThreshold].
+    """
     graph = {}
     used_targets = set()  # (path, index) already used as a match target
 
-    def helper(fromDFTuple, toDFTuple, timeThreshold, percentageThreshold, range_value, used_targets):
+    # Default time column if not explicitly provided.
+    # if timeColumn is None:
+    #     timeColumn = "Crossing Start Time"
+
+    def binarySearch(df, targetTime):
+        """Return the first index in df[timeColumn] whose value is >= targetTime - timeThreshold.
+
+        Assumes df[timeColumn] is sorted ascending. Returns -1 if no such index exists.
+        """
+        if df is None or df.empty:
+            return -1
+
+        target = targetTime - timeThreshold
+        values = df[timeColumn].values
+        left, right = 0, len(values) - 1
+        best_idx = -1
+
+        while left <= right:
+            mid = (left + right) // 2
+            val = values[mid]
+
+            # Treat NaNs as very large so they are effectively at the end.
+            if pd.isna(val):
+                right = mid - 1
+                continue
+
+            if val >= target:
+                best_idx = mid
+                right = mid - 1
+            else:
+                left = mid + 1
+
+        return best_idx
+
+    def helper(fromDFTuple, toDFTuple, percentageThreshold, used_targets):
         fromDF = fromDFTuple["df"]
         toDF = toDFTuple["df"]
         fromDFName = fromDFTuple["path"]
         toDFName = toDFTuple["path"]
-        shockWave = len(toDF) - len(fromDF) + range_value
+
+        # Cache target time column from toDF for faster access
+        to_times = toDF[timeColumn].values if not toDF.empty else []
 
         for pos in range(len(fromDF)):
             from_row = fromDF.iloc[pos]  # cache row once per from-row; use position for iloc
-            start_idx = max(0, pos - shockWave)
-            end_idx = min(len(toDF), pos + shockWave + 1)
+            targetTime = from_row.get(timeColumn, -1)
+
             maxScore, maxIndex = 0.0, -1
-            for i in range(start_idx, end_idx):
-                if (toDFName, i) in used_targets:
+
+            # If target time is invalid, skip time-based window and leave as no-match
+            if pd.isna(targetTime) or targetTime < 0:
+                key = (fromDFName, pos)
+                if key not in graph:
+                    graph[key] = []
+                graph[key].append({"key": {"dfName": toDFName, "index": maxIndex}, "score": maxScore})
+                continue
+
+            start_idx = binarySearch(toDF, targetTime)
+            if start_idx == -1:
+                # No candidate in the time window on the low side; record no-match
+                key = (fromDFName, pos)
+                if key not in graph:
+                    graph[key] = []
+                graph[key].append({"key": {"dfName": toDFName, "index": maxIndex}, "score": maxScore})
+                continue
+
+            upper_bound = targetTime + timeThreshold
+
+            i = start_idx
+            while i < len(toDF):
+                t = to_times[i]
+                if pd.isna(t):
+                    i += 1
                     continue
+                if t > upper_bound:
+                    break
+
+                if (toDFName, i) in used_targets:
+                    i += 1
+                    continue
+
                 score = computeFeatureScores(from_row, toDF.iloc[i], timeThreshold)
                 if score >= percentageThreshold and score > maxScore:
                     maxScore, maxIndex = score, i
                     if maxScore >= 1.0:
-                        break  # perfect match, no need to check rest of window
+                        break  # perfect match; no need to check rest of window
+
+                i += 1
+
             if maxScore >= percentageThreshold and maxIndex >= 0:
                 used_targets.add((toDFName, maxIndex))
+
             key = (fromDFName, pos)
             if key not in graph:
                 graph[key] = []
             graph[key].append({"key": {"dfName": toDFName, "index": maxIndex}, "score": maxScore})
 
-    helper(dflist[0], dflist[1], timeThreshold, percentageThreshold, range_value, used_targets)
-    helper(dflist[0], dflist[2], timeThreshold, percentageThreshold, range_value, used_targets)
-    helper(dflist[1], dflist[2], timeThreshold, percentageThreshold, range_value, used_targets)
+    helper(dflist[0], dflist[1], percentageThreshold, used_targets)
+    helper(dflist[0], dflist[2], percentageThreshold, used_targets)
+    helper(dflist[1], dflist[2], percentageThreshold, used_targets)
     return graph
 
 
