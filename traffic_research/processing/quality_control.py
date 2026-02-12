@@ -80,9 +80,16 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     
     # Traffic and notes fields
     trafficCondition = enumToStr('Vehicle Traffic', DataEngining.trafficVolume)
+    times_for_min = [t for t in (
+        compareTime('Bus Stop Arrival Time'),
+        compareTime('Intend to Cross Timestamp'),
+        compareTime('Crossing Start Time'),
+    ) if t > 0]
+    minTime = min(times_for_min) if times_for_min else -1
     
     return {
         "Video Title": videoTitle,
+        "sort_key": minTime,
         'Initials': '',
         "Location Name": locationName,
         "Bus Stop IDs/Addresses": busStopIDs,

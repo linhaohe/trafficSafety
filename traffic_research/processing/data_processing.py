@@ -84,14 +84,15 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
     
     dfQualityControl = pd.concat(
         [dfNoneBusUserCrossingGraphQC, dfBusUserCrossingGraphQC, dfBusNotCrossingGraphQC],
-        ignore_index=False).transpose()
+        ignore_index=False)
+    dfQualityControl = dfQualityControl.sort_values(by=['sort_key'], inplace=False).drop('sort_key', axis=1)
+    dfQualityControl = dfQualityControl.transpose()
     
     exportGraphToCsv(dfNoneBusUserCrossingGraph, os.path.join(outputFolderPath, folderName) + 'NoneBusUserCrossing_graph.csv')
     exportGraphToCsv(dfBusUserCrossingGraph, os.path.join(outputFolderPath, folderName) + 'BusUserCrossing_graph.csv')
     exportGraphToCsv(dfBusNotCrossingGraph, os.path.join(outputFolderPath, folderName) + 'BusNotCrossing_graph.csv')
     accuracy.appendFileAccuracy(os.path.basename(filePath), accuracy.getAccuracy())
     accuracy.reset()
-    
     dfQualityControl.to_csv(
         os.path.join(outputFolderPath, folderName) + '.csv', 
         index=True, 
@@ -146,6 +147,7 @@ def performAccuracyTest(outputFile, humanQualityFile):
     """Perform accuracy test comparing computed output with human quality control."""
     dfCompute = generateDateFrame(outputFile).dropna(how='all')
     dfHuman = generateDateFrame(humanQualityFile).dropna(how='all')
+    
     accuracy = accuracyTest(dfHuman, dfCompute)
     print(f"Accuracy: {accuracy*100:.2f}%")
     return accuracy
