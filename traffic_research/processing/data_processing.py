@@ -5,21 +5,9 @@ import pandas as pd
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from traffic_research.core.data_engineering import generateDateFrameList, generateDateFrame
-from traffic_research.core.matching import exportGraphToCsv, generateReferenceDataFrame, generateReferenceGraph
-from traffic_research.processing.quality_control import generateQualityControlDataFrame, accuracyTest, generateQualityControlDataFramebyGraph
+from traffic_research.core.matching import exportGraphToCsv, generateReferenceGraph
+from traffic_research.processing.quality_control import accuracyTest, generateQualityControlDataFramebyGraph
 from traffic_research.core.models import AccuracyScore
-
-
-def computeTrafficData(fileList, accuracy, percentageThreshold, timeThreshold):
-    """Compute traffic data from file list and generate quality control DataFrame."""
-    dflist = generateDateFrameList(fileList)
-    dflist = sorted(dflist, key=len)
-    # Calculate range value based on dataframe length differences
-    range_value = dflist[-1].shape[0] - dflist[0].shape[0] + 2
-    refDF = generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold, range_value)
-    dfQualityControl = generateQualityControlDataFrame(refDF, dflist, accuracy, timeThreshold)
-    dfQualityControl = dfQualityControl.transpose()
-    return dfQualityControl, refDF
 
 
 def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, timeThreshold):

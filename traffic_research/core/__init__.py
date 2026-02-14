@@ -10,7 +10,6 @@ from .scoring import (
     computeFeatureScores
 )
 from .matching import (
-    generateReferenceDataFrame,
     compareParameters,
     compareTimeDistance
 )
@@ -32,7 +31,6 @@ __all__ = [
     'computeTimeScore',
     'computeConditionScore',
     'computeFeatureScores',
-    'generateReferenceDataFrame',
     'compareParameters',
     'compareTimeDistance',
     'secondsToTimeString',
