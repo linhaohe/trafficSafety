@@ -181,38 +181,6 @@ def generateQualityControlDataFramebyGraph(refGraph, dflist, accuracy, timeThres
         rows.append(constructRowDict(row0, row1, row2, from_index, accuracy, timeThreshold))
     return pd.DataFrame(rows)
 
-def generateQualityControlDataFrame(refDF, dflist, accuracy, timeThreshold):
-    """Generate quality control DataFrame from reference DataFrame and dataframes."""
-    rows = []
-    df0, df1, df2 = dflist[0], dflist[1], dflist[2]
-    
-    for index in refDF.itertuples():
-        # A to B and A to C
-        row0 = df0.iloc[index.Index]
-        # B to A and B to C
-        index1 = int(refDF.iloc[index.Index].index1)
-        index2 = int(refDF.iloc[index.Index].index2)
-        if index1 == -1 and index.score3 != -1:
-          index1 = int(refDF.iloc[index.Index].index1_bc)
-        if index2 == -1 and index.score3 != -1:
-          index2 = int(refDF.iloc[index.Index].index2_bc)
-        
-        if index1 == -1 and index2 == -1:
-            continue
-        if index1 == -1 or index1 >= len(df1):
-            # No match found or invalid index, use first row as fallback (will be handled in comparison)
-            index1 = 0 if len(df1) > 0 else -1
-        row1 = df1.iloc[index1] if index1 != -1 else df0.iloc[index.Index]
-        # C to A and C to B
-        if index2 == -1 or index2 >= len(df2):
-            # No match found or invalid index, use first row as fallback (will be handled in comparison)
-            index2 = 0 if len(df2) > 0 else -1
-        row2 = df2.iloc[index2] if index2 != -1 else df0.iloc[index.Index]
-
-        rows.append(constructRowDict(row0, row1, row2, index.Index, accuracy, timeThreshold))
-    
-    return pd.DataFrame(rows)
-
 
 def accuracyTest(humanQualityDF, computedQualityDF):
     """Test accuracy by comparing human quality control with computed results.
