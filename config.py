@@ -27,5 +27,10 @@ EXCLUDED_FROM_ACCURACY = {
     'Video Title',
     'Initials',
     'Location Name',
-    'Count of Bus Stop Routes'
+    'Count of Bus Stop Routes',
+    'User Count',
+    'User Notes',
+    'Noteworthy Events',
+    'General Reviewer Notes',
+    'Bus Noteworthy Events'
 }

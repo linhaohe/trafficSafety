@@ -1,5 +1,7 @@
 """Quality control functions for generating and testing data quality."""
 
+from typing import Any
+import heapq
 import pandas as pd
 import sys
 import os
@@ -16,7 +18,10 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
         return compareParameters(row0, row1, row2, field, accuracy)
     
     def compareTime(field):
-        return compareTimeDistance(row0[field], row1[field], row2[field], accuracy, timeThreshold)
+        time0 = row0[field] if row0 is not None else -1
+        time1 = row1[field] if row1 is not None else -1
+        time2 = row2[field] if row2 is not None else -1
+        return compareTimeDistance(time0, time1, time2, accuracy, timeThreshold)
     
     def enumToStr(field, enumType, default=""):
         """Convert enum value to string with optional default for empty values."""  
@@ -75,9 +80,16 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     
     # Traffic and notes fields
     trafficCondition = enumToStr('Vehicle Traffic', DataEngining.trafficVolume)
+    times_for_min = [t for t in (
+        compareTime('Bus Stop Arrival Time'),
+        compareTime('Intend to Cross Timestamp'),
+        compareTime('Crossing Start Time'),
+    ) if t > 0]
+    minTime = min(times_for_min) if times_for_min else -1
     
     return {
         "Video Title": videoTitle,
+        "sort_key": minTime,
         'Initials': '',
         "Location Name": locationName,
         "Bus Stop IDs/Addresses": busStopIDs,
@@ -117,37 +129,56 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
         "General Reviewer Notes": '0'
     }
 
-
-def generateQualityControlDataFrame(refDF, dflist, accuracy, timeThreshold):
-    """Generate quality control DataFrame from reference DataFrame and dataframes."""
+def generateQualityControlDataFramebyGraph(refGraph, dflist, accuracy, timeThreshold):
+    """Build QC rows from refGraph by resolving each node to (row0, row1?, row2?) and calling constructRowDict."""
+    paths = [dflist[i]["path"] for i in range(3)]
+    dfs = [dflist[i]["df"] for i in range(3)]
+    path_to_idx = {p: i for i, p in enumerate(paths)}
+    visited = [set(), set(), set()]
     rows = []
-    df0, df1, df2 = dflist[0], dflist[1], dflist[2]
-    
-    for index in refDF.itertuples():
-        # A to B and A to C
-        row0 = df0.iloc[index.Index]
-        # B to A and B to C
-        index1 = int(refDF.iloc[index.Index].index1)
-        index2 = int(refDF.iloc[index.Index].index2)
-        if index1 == -1 and index.score3 != -1:
-          index1 = int(refDF.iloc[index.Index].index1_bc)
-        if index2 == -1 and index.score3 != -1:
-          index2 = int(refDF.iloc[index.Index].index2_bc)
-        
-        if index1 == -1 and index2 == -1:
-            continue
-        if index1 == -1 or index1 >= len(df1):
-            # No match found or invalid index, use first row as fallback (will be handled in comparison)
-            index1 = 0 if len(df1) > 0 else -1
-        row1 = df1.iloc[index1] if index1 != -1 else df0.iloc[index.Index]
-        # C to A and C to B
-        if index2 == -1 or index2 >= len(df2):
-            # No match found or invalid index, use first row as fallback (will be handled in comparison)
-            index2 = 0 if len(df2) > 0 else -1
-        row2 = df2.iloc[index2] if index2 != -1 else df0.iloc[index.Index]
 
-        rows.append(constructRowDict(row0, row1, row2, index.Index, accuracy, timeThreshold))
-    
+    for key, matches in refGraph.items():
+        if isinstance(key, tuple):
+            from_dfName, from_index = key[0], key[1]
+        else:
+            from_dict = dict(key)
+            from_dfName = from_dict["dfName"]
+            from_index = from_dict["index"]
+        from_idx = path_to_idx[from_dfName]
+        if from_index in visited[from_idx] or len(matches) == 0:
+            continue
+        visited[from_idx].add(from_index)
+
+        # Unpack match keys once; -1 index means no match
+        m0_key = matches[0]["key"] if len(matches) > 0 else None
+        m0_score = matches[0]["score"] if len(matches) > 0 else -1
+        m1_key = matches[1]["key"] if len(matches) > 1 else None
+        m1_score = matches[1]["score"] if len(matches) > 1 else -1            
+        valid_0 = m0_key is not None and m0_score > -1 and m0_key["index"] >= 0 and m0_key["index"] not in visited[path_to_idx[m0_key["dfName"]]]
+        valid_1 = m1_key is not None and m1_score > -1 and m1_key["index"] >= 0 and m1_key["index"] not in visited[path_to_idx[m1_key["dfName"]]]
+        
+        if not valid_1 and valid_0 and len(matches) > 1:
+            # print(f"valid_1 is None and valid_0 is not None: {valid_1} {valid_0}")
+            # print(f"m0_key: {m0_key}")
+            m1_key = refGraph[(m0_key["dfName"], m0_key["index"])][0]["key"] if refGraph[(m0_key["dfName"], m0_key["index"])] else None
+            m1_score = refGraph[(m0_key["dfName"], m0_key["index"])][0]["score"] if refGraph[(m0_key["dfName"], m0_key["index"])] else -1
+            valid_1 = m1_key is not None and m1_score > -1 and m1_key["index"] >= 0 and m1_key["index"] not in visited[path_to_idx[m1_key["dfName"]]]
+
+        if not (valid_0 or valid_1):
+            continue
+
+        row0 = dfs[from_idx].iloc[from_index]
+        row1 = None
+        row2 = None
+        if valid_0:
+            idx0 = path_to_idx[m0_key["dfName"]]
+            row1 = dfs[idx0].iloc[m0_key["index"]]
+            visited[idx0].add(m0_key["index"])
+        if valid_1:
+            idx1 = path_to_idx[m1_key["dfName"]]
+            row2 = dfs[idx1].iloc[m1_key["index"]]
+            visited[idx1].add(m1_key["index"])
+        rows.append(constructRowDict(row0, row1, row2, from_index, accuracy, timeThreshold))
     return pd.DataFrame(rows)
 
 

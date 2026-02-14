@@ -101,7 +101,7 @@ class DataEngining:
     @staticmethod
     def load_csv(file_path):
         """Load and transpose CSV file, setting first row as column headers."""
-        df = pd.read_csv(file_path, header=None,encoding='cp1252').transpose()
+        df = pd.read_csv(file_path, header=None,encoding='cp1252',low_memory=False).transpose()
         df.columns = df.iloc[0]
         df = df.iloc[1:]
         df = df.loc[:, ~df.columns.duplicated()]
@@ -255,41 +255,48 @@ class DataEngining:
         BUS_INTERACTION_UNKNOWN = DataEngining.busInteractions.unknown_bus_interaction.value
         CROSSING_LOC_OTHER = DataEngining.crossingLocationRelativeToBus.other.value
         CROSSING_LOC_STOP_OTHER = DataEngining.crossingLocationRelativeToBusStop.other.value
-        
-        if row[BUS_INTERACTION] == OTHER:
-            if [TYPE_BUS_INTERACTION] != BUS_INTERACTION_OTHER:
-                row[BUS_INTERACTION] = YES
-            else:
-                row[BUS_INTERACTION] = NO
-        
-        if row[BUS_PRESENCE] == OTHER:
-            if row[TYPE_BUS_INTERACTION] != BUS_INTERACTION_OTHER or row[BUS_INTERACTION] == YES or row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER:
-                row[BUS_PRESENCE] = YES
-            else:
-                row[BUS_PRESENCE] = NO
 
-        if row[TYPE_BUS_INTERACTION] == OTHER:
-            if row[BUS_INTERACTION] == YES:
-                row[TYPE_BUS_INTERACTION] = BUS_INTERACTION_UNKNOWN
-           
-        # Rule 4: Roadway Crossing is 'yes' if any crossing activity is indicated
-        if row[ROADWAY_CROSSING] == OTHER:
-            if (row[CROSSWALK_CROSSING] == YES or 
-                row[CROSSING_NOTES] != OTHER or 
-                row[CROSSING_START_TIME] > 0 or 
-                row[CROSSING_END_TIME] > 0 or 
-                row[CROSSING_LOC_REL_BUS_STOP] != CROSSING_LOC_STOP_OTHER or 
-                row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER or
-                row[FINISH_CROSSING_DURING_PEDESTRIAN_PHASE] == YES):
-                row[ROADWAY_CROSSING] = YES
-            else:
-                row[ROADWAY_CROSSING] = NO            
-        # Rule 5: If refuge island times are present, set Refuge Island and Crosswalk Crossing to 'yes'
-        if row[REFUGE_ISLAND_START] > 0 and row[REFUGE_ISLAND_END] > 0:
+        # --- Rule 1: Bus Interaction based on Type of Bus Interaction ---
+        type_bus_interaction = row[TYPE_BUS_INTERACTION]
+        bus_interaction = row[BUS_INTERACTION]
+        crossing_loc_rel_bus = row[CROSSING_LOC_REL_BUS]
+
+        has_explicit_bus_type = type_bus_interaction != BUS_INTERACTION_OTHER
+        row[BUS_INTERACTION] = YES if has_explicit_bus_type else NO
+        bus_interaction = row[BUS_INTERACTION]
+
+        # --- Rule 2: Bus Presence ---
+        if has_explicit_bus_type or bus_interaction == YES or crossing_loc_rel_bus != CROSSING_LOC_OTHER:
+            row[BUS_PRESENCE] = YES
+        else:
+            row[BUS_PRESENCE] = NO
+
+        # --- Rule 3: Normalize 'other' type when Bus Interaction is yes ---
+        if type_bus_interaction == BUS_INTERACTION_OTHER and bus_interaction == YES:
+            row[TYPE_BUS_INTERACTION] = BUS_INTERACTION_UNKNOWN
+            type_bus_interaction = BUS_INTERACTION_UNKNOWN
+
+        # --- Rule 4: Roadway Crossing is 'yes' if any crossing activity is indicated ---
+        has_crossing_activity = (
+            row[CROSSWALK_CROSSING] == YES
+            or row[CROSSING_NOTES] != OTHER
+            or row[CROSSING_START_TIME] > 0
+            or row[CROSSING_END_TIME] > 0
+            or row[CROSSING_LOC_REL_BUS_STOP] != CROSSING_LOC_STOP_OTHER
+            or row[CROSSING_LOC_REL_BUS] != CROSSING_LOC_OTHER
+            or row[FINISH_CROSSING_DURING_PEDESTRIAN_PHASE] == YES
+        )
+        row[ROADWAY_CROSSING] = YES if has_crossing_activity else NO
+
+        # --- Rule 5: Refuge island implies crossing ---
+        if row[REFUGE_ISLAND_START] > 0 or row[REFUGE_ISLAND_END] > 0:
             row[REFUGE_ISLAND] = YES
-            row[CROSSWALK_CROSSING] = YES
-        if row[CROSSWALK_CROSSING] == OTHER and row[ROADWAY_CROSSING] == NO:
+            row[ROADWAY_CROSSING] = YES
+
+        # If no roadway crossing, ensure Crosswalk Crossing is also 'no'
+        if row[ROADWAY_CROSSING] == NO:
             row[CROSSWALK_CROSSING] = NO
+
         return row
 
     # ---------------- MAIN ROW PROCESSOR ----------------
@@ -413,7 +420,7 @@ def generateDateFrameList(path_urls):
         load_df = DataEngining.load_csv(path)
         load_df = load_df.apply(DataEngining.dataEnginingRow, axis=1)
         load_df = load_df.astype(DTYPE_MAPPING)
-        df_list.append(load_df)
+        df_list.append({"path" : path, "df":load_df})
     return df_list
 
 

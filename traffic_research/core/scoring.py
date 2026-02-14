@@ -57,7 +57,7 @@ def computeTimeScore(row1, row2, threshold):
         'Crossing Start Time',
         'Bus Stop Arrival Time',
         'Bus Stop Departure Time',
-        # 'Intend to Cross Timestamp',
+        'Intend to Cross Timestamp',
         'Refuge Island Start Time',
         'Refuge Island End Time',
         'Crossing End Time'
@@ -70,7 +70,7 @@ def computeTimeScore(row1, row2, threshold):
         val2 = row2[field]
         
         # Skip if both values are -1
-        if val1 == -1 and val2 == -1:
+        if val1 == -1 or val2 == -1:
             continue
         
         score = calculateTimeScore(val1, val2, threshold)

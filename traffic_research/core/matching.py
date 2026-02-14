@@ -7,119 +7,149 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from .scoring import computeFeatureScores
 from config import EXCLUDED_FROM_ACCURACY
 
-
-def generateReferenceDataFrame(dflist, timeThreshold, percentageThreshold, range_value):
-    """Generate reference DataFrame by matching rows across three dataframes.
-    
-    Compares:
-    - A to B (df0 to df1): for row i in A, compares with rows in B in range [i-range, i+range]
-    - A to C (df0 to df2): for row i in A, compares with rows in C in range [i-range, i+range]
-    - B to C (df1 to df2): for row i in B, compares with rows in C in range [i-range, i+range]
-    
-    For each row at index i, only compares with rows in other dataframes within 
-    the range [i-range, i+range]. Only considers matches above percentageThreshold. 
-    Once a row is matched, it is marked as visited and cannot be used in future comparisons.
-    
-    Args:
-        dflist: List of three dataframes [df0, df1, df2]
-        timeThreshold: Time threshold for matching
-        percentageThreshold: Minimum similarity score for a match
-        range_value: Range value for index comparison (default 0, meaning only same index)
+# assume range_value is user inputed value
+def generateReferenceGraph(dflist, timeThreshold, percentageThreshold, timeColumn):
     """
+    Generate a reference graph matching rows across three dataframes.
+
+    Each df in dflist['df'] is assumed to be sorted by the same time column
+    (passed in as timeColumn). Matching is restricted to rows in the target
+    dataframe whose time lies in [targetTime - timeThreshold, targetTime + timeThreshold].
+    """
+    graph = {}
+    used_targets = set()  # (path, index) already used as a match target
+
+    # Default time column if not explicitly provided.
+    # if timeColumn is None:
+    #     timeColumn = "Crossing Start Time"
+
+    def binarySearch(df, targetTime):
+        """Return the first index in df[timeColumn] whose value is >= targetTime - timeThreshold.
+
+        Assumes df[timeColumn] is sorted ascending. Returns -1 if no such index exists.
+        """
+        if df is None or df.empty:
+            return -1
+
+        target = targetTime - timeThreshold
+        values = df[timeColumn].values
+        left, right = 0, len(values) - 1
+        best_idx = -1
+
+        while left <= right:
+            mid = (left + right) // 2
+            val = values[mid]
+
+            # Treat NaNs as very large so they are effectively at the end.
+            if pd.isna(val):
+                right = mid - 1
+                continue
+
+            if val >= target:
+                best_idx = mid
+                right = mid - 1
+            else:
+                left = mid + 1
+
+        return best_idx
+
+    def helper(fromDFTuple, toDFTuple, percentageThreshold, used_targets):
+        fromDF = fromDFTuple["df"]
+        toDF = toDFTuple["df"]
+        fromDFName = fromDFTuple["path"]
+        toDFName = toDFTuple["path"]
+
+        # Cache target time column from toDF for faster access
+        to_times = toDF[timeColumn].values if not toDF.empty else []
+
+        for pos in range(len(fromDF)):
+            from_row = fromDF.iloc[pos]  # cache row once per from-row; use position for iloc
+            targetTime = from_row.get(timeColumn, -1)
+
+            maxScore, maxIndex = 0.0, -1
+
+            # If target time is invalid, skip time-based window and leave as no-match
+            if pd.isna(targetTime) or targetTime < 0:
+                key = (fromDFName, pos)
+                if key not in graph:
+                    graph[key] = []
+                graph[key].append({"key": {"dfName": toDFName, "index": maxIndex}, "score": maxScore})
+                continue
+
+            start_idx = binarySearch(toDF, targetTime)
+            if start_idx == -1:
+                # No candidate in the time window on the low side; record no-match
+                key = (fromDFName, pos)
+                if key not in graph:
+                    graph[key] = []
+                graph[key].append({"key": {"dfName": toDFName, "index": maxIndex}, "score": maxScore})
+                continue
+
+            upper_bound = targetTime + timeThreshold
+
+            i = start_idx
+            while i < len(toDF):
+                t = to_times[i]
+                if pd.isna(t):
+                    i += 1
+                    continue
+                if t > upper_bound:
+                    break
+
+                if (toDFName, i) in used_targets:
+                    i += 1
+                    continue
+
+                score = computeFeatureScores(from_row, toDF.iloc[i], timeThreshold)
+                if score >= percentageThreshold and score > maxScore:
+                    maxScore, maxIndex = score, i
+                    if maxScore >= 1.0:
+                        break  # perfect match; no need to check rest of window
+
+                i += 1
+
+            if maxScore >= percentageThreshold and maxIndex >= 0:
+                used_targets.add((toDFName, maxIndex))
+
+            key = (fromDFName, pos)
+            if key not in graph:
+                graph[key] = []
+            graph[key].append({"key": {"dfName": toDFName, "index": maxIndex}, "score": maxScore})
+
+    helper(dflist[0], dflist[1], percentageThreshold, used_targets)
+    helper(dflist[0], dflist[2], percentageThreshold, used_targets)
+    helper(dflist[1], dflist[2], percentageThreshold, used_targets)
+    return graph
+
+
+def exportGraphToCsv(graph, csv_path):
+    """Export the reference graph to a CSV with one row per node: from_dfName, from_index, then to_dfName_1, to_index_1, score_1, to_dfName_2, ... for all matches in the same row. dfName is stored as filename only (e.g. Alex.csv)."""
+    def _basename(path):
+        return os.path.basename(path) if path else ""
+    max_matches = max(len(matches) for _, matches in graph.items()) if graph else 0
     rows = []
-    df0, df1, df2 = dflist[0], dflist[1], dflist[2]
-
-    # Track which rows have been visited/used
-    visited_b = set()  # Rows in df1 (B) that have been matched
-    visited_c = set()  # Rows in df2 (C) that have been matched
-
-    # Compare B to C (df1 to df2) - for each row i in B, compare with rows in C in range [i-range, i+range]
-    bc_matches = {}
-    for row1 in df1.itertuples():
-        i = row1.Index
-        maxScore3, maxIndex3 = -1.0, -1
-        
-        # Calculate the range of indices to compare in df2
-        start_idx = max(0, i - range_value)
-        end_idx = min(len(df2), i + range_value + 1)
-        
-        for j in range(start_idx, end_idx):
-            if j in visited_c:
-                continue
-            score = computeFeatureScores(df1.iloc[i], df2.iloc[j], timeThreshold)
-            if score >= percentageThreshold and score > maxScore3:
-                maxScore3, maxIndex3 = score, j
-        
-        bc_matches[i] = {
-            "index2_bc": maxIndex3,
-            "score3": maxScore3
-        }
-
-    # Compare A to B and A to C, and include B to C match
-    for row in df0.itertuples():
-        i = row.Index
-        maxScore1, maxIndex1 = -1.0, -1
-        maxScore2, maxIndex2 = -1.0, -1
-
-        # Compare A to B (df0 to df1) - compare row i in A with rows in B in range [i-range, i+range]
-        start_idx_b = max(0, i - range_value)
-        end_idx_b = min(len(df1), i + range_value + 1)
-        for j in range(start_idx_b, end_idx_b):
-            if j in visited_b:
-                continue
-            score = computeFeatureScores(df0.iloc[i], df1.iloc[j], timeThreshold)
-            if score >= percentageThreshold and score > maxScore1:
-                maxScore1, maxIndex1 = score, j
-
-        # Compare A to C (df0 to df2) - compare row i in A with rows in C in range [i-range, i+range]
-        start_idx_c = max(0, i - range_value)
-        end_idx_c = min(len(df2), i + range_value + 1)
-        for j in range(start_idx_c, end_idx_c):
-            if j in visited_c:
-                continue
-            score = computeFeatureScores(df0.iloc[i], df2.iloc[j], timeThreshold)
-            if score >= percentageThreshold and score > maxScore2:
-                maxScore2, maxIndex2 = score, j
-
-        # Mark matched rows as visited only if score is above threshold
-        if maxIndex1 != -1 and maxScore1 >= percentageThreshold:
-            visited_b.add(maxIndex1)
-        if maxIndex2 != -1 and maxScore2 >= percentageThreshold:
-            visited_c.add(maxIndex2)
-
-        # Get B->C match for the matched row in B
-        if maxIndex1 in bc_matches:
-            bc_match = bc_matches[maxIndex1]
-            index2_bc = bc_match["index2_bc"]
-            score3 = bc_match["score3"]
-            
-            if (index2_bc != -1 and index2_bc != maxIndex2 and score3 >= percentageThreshold):
-                visited_c.add(index2_bc)
+    for key, matches in graph.items():
+        if isinstance(key, tuple):
+            from_dfName = _basename(key[0])
+            from_index = key[1]
         else:
-            index2_bc = -1
-            score3 = -1.0
-
-        rows.append({
-            "index1": maxIndex1,
-            "score1": maxScore1,
-            "index2": maxIndex2,
-            "score2": maxScore2,
-            "index1_bc": maxIndex1,
-            "index2_bc": index2_bc,
-            "score3": score3
-        })
-
-    qualityDF = pd.DataFrame(rows)
-    qualityDF = qualityDF.astype({
-        "index1": "Int64", 
-        "score1": "float64", 
-        "index2": "Int64", 
-        "score2": "float64",
-        "index1_bc": "Int64",
-        "index2_bc": "Int64",
-        "score3": "float64"
-    })
-    return qualityDF
+            from_node = dict(key)
+            from_dfName = _basename(from_node.get("dfName", ""))
+            from_index = from_node.get("index", -1)
+        row = {"from_dfName": from_dfName, "from_index": from_index}
+        for i, m in enumerate(matches):
+            to_node = m["key"]
+            row[f"to_dfName_{i+1}"] = _basename(to_node.get("dfName", ""))
+            row[f"to_index_{i+1}"] = to_node.get("index", -1)
+            row[f"score_{i+1}"] = m["score"]
+        for i in range(len(matches), max_matches):
+            row[f"to_dfName_{i+1}"] = ""
+            row[f"to_index_{i+1}"] = ""
+            row[f"score_{i+1}"] = ""
+        rows.append(row)
+    df = pd.DataFrame(rows)
+    # df = df.sort_values(by=["from_dfName", "from_index"])
+    df.to_csv(csv_path, index=False)
 
 
 def compareParameters(row0, row1, row2, fieldName, accuracy):
@@ -142,9 +172,9 @@ def compareParameters(row0, row1, row2, fieldName, accuracy):
     Note:
         Certain parameters are excluded from accuracy tracking.
     """
-    value_a = row0[fieldName]
-    value_b = row1[fieldName]
-    value_c = row2[fieldName]
+    value_a = row0[fieldName] if row0 is not None else ""
+    value_b = row1[fieldName]  if row1 is not None else ""
+    value_c = row2[fieldName] if row2 is not None else ""
     
     # Extract similarity scores
     # score_ab = row0['score'][0]  # A to B similarity score
