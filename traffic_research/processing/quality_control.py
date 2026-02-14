@@ -153,10 +153,17 @@ def generateQualityControlDataFramebyGraph(refGraph, dflist, accuracy, timeThres
         m0_key = matches[0]["key"] if len(matches) > 0 else None
         m0_score = matches[0]["score"] if len(matches) > 0 else -1
         m1_key = matches[1]["key"] if len(matches) > 1 else None
-        m1_score = matches[1]["score"] if len(matches) > 1 else -1
-
+        m1_score = matches[1]["score"] if len(matches) > 1 else -1            
         valid_0 = m0_key is not None and m0_score > -1 and m0_key["index"] >= 0 and m0_key["index"] not in visited[path_to_idx[m0_key["dfName"]]]
         valid_1 = m1_key is not None and m1_score > -1 and m1_key["index"] >= 0 and m1_key["index"] not in visited[path_to_idx[m1_key["dfName"]]]
+        
+        if not valid_1 and valid_0 and len(matches) > 1:
+            # print(f"valid_1 is None and valid_0 is not None: {valid_1} {valid_0}")
+            # print(f"m0_key: {m0_key}")
+            m1_key = refGraph[(m0_key["dfName"], m0_key["index"])][0]["key"] if refGraph[(m0_key["dfName"], m0_key["index"])] else None
+            m1_score = refGraph[(m0_key["dfName"], m0_key["index"])][0]["score"] if refGraph[(m0_key["dfName"], m0_key["index"])] else -1
+            valid_1 = m1_key is not None and m1_score > -1 and m1_key["index"] >= 0 and m1_key["index"] not in visited[path_to_idx[m1_key["dfName"]]]
+
         if not (valid_0 or valid_1):
             continue
 
