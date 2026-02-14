@@ -1,150 +1,142 @@
 # Traffic Research Analysis
 
-A Python package for analyzing traffic research data, including data processing, quality control, accuracy testing, and visualization.
+A Python package for analyzing traffic research data: processing reviewer CSVs, building consensus via graph-based time-window matching, quality control, accuracy testing, and optional visualization.
 
 ## Project Structure
 
 ```
 ./
-├── config.py                    # Configuration constants
+├── config.py                    # Configuration constants (paths, weights, thresholds)
 ├── main.py                      # Main entry point
 ├── requirements.txt             # Python dependencies
+├── ALGORITHM_SUMMARY.md         # Detailed algorithm and matching logic
 └── traffic_research/            # Main package
     ├── __init__.py
     ├── core/                    # Core functionality
-    │   ├── models.py           # Data models (AccuracyScore)
-    │   ├── scoring.py          # Scoring functions
-    │   ├── matching.py         # Matching and comparison functions
-    │   ├── utils.py            # Utility functions
-    │   └── data_engineering.py # Data engineering utilities
-    ├── processing/              # Data processing
-    │   ├── data_processing.py  # Data processing functions
-    │   └── quality_control.py # Quality control functions
-    └── graphing/                # Visualization
-        └── graphing.py         # Graph generation functions
+    │   ├── models.py            # Data models (AccuracyScore)
+    │   ├── scoring.py            # Similarity scoring (time + condition)
+    │   ├── matching.py          # Reference graph and export
+    │   ├── utils.py              # Time/enum utilities
+    │   └── data_engineering.py  # CSV load, parse, logic rules
+    ├── processing/               # Data processing
+    │   ├── data_processing.py   # Folder processing, graph + QC pipeline
+    │   └── quality_control.py   # QC from graph, consensus, accuracy test
+    └── graphing/                 # Visualization
+        └── graphing.py          # Accuracy comparison graphs
 ```
 
 ## Requirements
 
-- Python 3.8+ (recommended)
-- Dependencies listed in `requirements.txt`:
-  - `pandas>=1.5.0` - Data processing and DataFrame operations
-  - `matplotlib>=3.5.0` - Visualization and plotting
+- Python 3.8+
+- Dependencies in `requirements.txt`:
+  - `pandas>=1.5.0` — DataFrames and CSV I/O
+  - `matplotlib>=3.5.0` — Optional; used by graphing module
 
 ## Setup
 
 ### macOS / Linux
 
-1. Open a terminal and navigate to the project directory:
-   ```bash
-   cd path/to/Traffic\ research
-   ```
-
-2. Create and activate a virtual environment:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+cd path/to/Traffic\ research
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
 ### Windows
 
-1. Open a terminal and navigate to the project directory:
-   ```bash
-   cd path\to\Traffic research
-   ```
-
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+cd path\to\Traffic research
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
 
 ## Usage
 
-### Running the Main Script
+### Running the main script
 
-From the project root (with virtual environment active):
+From the project root (with the virtual environment active):
 
 ```bash
 python main.py
 ```
 
-The main script performs the following operations:
-- Processes traffic data from input folders
-- Generates quality control DataFrames
-- Performs accuracy tests comparing computed results with human quality control data
+This will:
+
+1. **Process all folders** under `INPUT_DATA_PATH`: each folder should contain 3 reviewer CSVs.
+2. **Split** data by Bus Interaction and Roadway Crossing into three subsets (NoneBusUserCrossing, BusUserCrossing, BusNotCrossing), build a **reference graph** per subset using time-window matching, then generate **quality-control DataFrames** and export graphs and QC to CSV.
+3. **Write** an accuracy summary to `output/interated_summary.csv`.
+4. **Run** an accuracy test comparing computed output to human QC for the Northampton location (see `config.py`).
+
+Default thresholds used in `main.py`: `percentageThreshold=0.65`, `timeThreshold=10` (seconds).
 
 ### Configuration
 
-Edit `config.py` to adjust:
-- Scoring weights (`TIME_SCORE_WEIGHT`, `CONDITION_SCORE_WEIGHT`)
-- Default thresholds (`DEFAULT_PERCENTAGE_THRESHOLD`, `DEFAULT_TIME_THRESHOLD`)
-- File paths (`INPUT_DATA_PATH`, `OUTPUT_PATH`, etc.)
+Edit `config.py` to change:
 
-### Main Functions
+- **Paths**: `INPUT_DATA_PATH`, `OUTPUT_PATH`, `HUMAN_QC_PATH`, `ACCURACY_SUMMARY_DIR`, and per-dataset paths (e.g. `NORTHAMPTON_OUTPUT`, `NORTHAMPTON_HUMAN_QC`, `BELMONT_*`).
+- **Scoring**: `TIME_SCORE_WEIGHT`, `CONDITION_SCORE_WEIGHT`, `COLOR_WEIGHT`.
+- **Defaults**: `DEFAULT_PERCENTAGE_THRESHOLD`, `DEFAULT_TIME_THRESHOLD`.
+- **Accuracy**: `EXCLUDED_FROM_ACCURACY` — field names excluded from accuracy calculations.
 
-#### Data Processing
-- `computeDataFolderToCSV()` - Process all folders in input data path and generate CSV outputs
-- `performAccuracyTest()` - Compare computed output with human quality control data
+### Main functions
 
-#### Graph Generation
-- `generateGraphDataPercentage()` - Generate graph data for different percentage thresholds
-- `generateGraphDataTime()` - Generate graph data for different time thresholds
-- `graphData()` - Generate all accuracy comparison graphs
+#### Data processing
 
-## Package Modules
+- **`computeDataFolderToCSV(resourceFolderPath, outputFolderPath, percentageThreshold, timeThreshold)`** — Process all subfolders; produce one QC CSV and three graph CSVs per folder, plus `interated_summary.csv`.
+- **`performAccuracyTest(outputFile, humanQualityFile)`** — Compare a computed QC CSV to a human QC CSV and print accuracy.
+
+#### Graphing (optional)
+
+- **`generateGraphDataPercentage(...)`** — Sweep percentage threshold; run processing and accuracy tests.
+- **`generateGraphDataTime(...)`** — Sweep time threshold; run processing and accuracy tests.
+- **`graphData()`** — Generate accuracy comparison plots (reads from `accuracy_summary` CSVs).
+
+## Package modules
 
 ### Core (`traffic_research.core`)
-- **models**: `AccuracyScore` class for tracking accuracy metrics
-- **scoring**: Functions for calculating numeric and condition scores
-- **matching**: Functions for matching rows across dataframes and comparing parameters
-- **utils**: Utility functions for time conversion and enum handling
+
+- **models**: `AccuracyScore` — Tracks per-folder and overall accuracy.
+- **scoring**: Time and condition similarity (`computeTimeScore`, `computeConditionScore`, `computeFeatureScores`).
+- **matching**: `generateReferenceGraph`, `exportGraphToCsv`, `compareParameters`, `compareTimeDistance`.
+- **utils**: `secondsToTimeString`, `enumToString`.
+- **data_engineering**: `DataEngining` (load, parse, logic rules), `generateDateFrameList`, `generateDateFrame`.
 
 ### Processing (`traffic_research.processing`)
-- **data_processing**: Functions for computing traffic data and processing folders
-- **quality_control**: Functions for generating quality control DataFrames and accuracy testing
+
+- **data_processing**: `computeDataFolderToCSV`, `computeDataFolderToCSVWithIndex`, `performAccuracyTest`.
+- **quality_control**: `constructRowDict`, `generateQualityControlDataFramebyGraph`, `accuracyTest`.
 
 ### Graphing (`traffic_research.graphing`)
-- **graphing**: Functions for generating accuracy comparison graphs
 
-## Input/Output
+- **graphing**: `generateGraphDataPercentage`, `generateGraphDataTime`, `graphData`.
 
-### Input Data
-- Input data should be placed in `./resource/inputData/` (configurable in `config.py`)
-- Each folder should contain CSV files from different reviewers
+## Input / output
+
+### Input
+
+- **Location**: `./resource/inputData/` (override in `config.py`).
+- **Layout**: One subfolder per location; each subfolder contains **3 CSV files** (e.g. from three reviewers).
 
 ### Output
-- Processed data is saved to `./output/` (configurable in `config.py`)
-- Quality control DataFrames are saved as CSV files
-- Accuracy summaries are saved to `./output/accuracy_summary/`
-- Graphs are saved as PNG files in the accuracy summary directory
+
+- **Location**: `./output/` (override in `config.py`).
+- **Per folder**:
+  - `{folderName}.csv` — Combined quality-control DataFrame (consensus rows).
+  - `{folderName}NoneBusUserCrossing_graph.csv`, `{folderName}BusUserCrossing_graph.csv`, `{folderName}BusNotCrossing_graph.csv` — Reference match graphs.
+- **Summary**: `output/interated_summary.csv` — Location and accuracy per folder.
+- **Graphing**: If using the graphing module, CSVs and PNGs go under `output/accuracy_summary/`.
 
 ## Troubleshooting
 
-- **ModuleNotFoundError**: Ensure virtual environment is active and dependencies are installed
-  ```bash
-  pip install -r requirements.txt
-  ```
-
-- **Import errors**: Make sure you're running from the project root directory
-
-- **File not found errors**: Check that input data paths in `config.py` are correct
-
-- **Permission errors**: Use a virtual environment or ensure file permissions are correct
+- **ModuleNotFoundError**: Activate the virtual environment and run `pip install -r requirements.txt`.
+- **Import errors**: Run scripts from the project root.
+- **File not found**: Check paths in `config.py` and that input folders contain 3 CSVs each.
+- **Permission errors**: Use a virtual environment and ensure write access to `OUTPUT_PATH`.
 
 ## Notes
 
-- The package uses pandas DataFrames for data manipulation
-- Time values are stored as seconds since midnight
-- Certain parameters (Video Title, Initials, Location Name, Count of Bus Stop Routes) are excluded from accuracy calculations
-- The matching algorithm compares rows across three dataframes (A, B, C) and marks visited rows to prevent reuse
+- Data is processed as pandas DataFrames; times are stored as seconds since midnight.
+- Matching is **graph-based** and uses a **time window** (see `ALGORITHM_SUMMARY.md` for details).
+- Fields in `EXCLUDED_FROM_ACCURACY` (e.g. Video Title, Initials, Location Name, User Notes) are not used when computing accuracy.

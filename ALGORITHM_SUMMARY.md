@@ -1,153 +1,154 @@
 # Traffic Research Algorithm Summary
 
 ## Overview
-This system processes traffic crossing data from multiple reviewers (typically 3 CSV files) to generate a consensus reference dataset. It uses a weighted similarity scoring system to match corresponding rows across reviewers and determine consensus values.
+
+This system processes traffic crossing data from multiple reviewers (typically 3 CSV files per location) to generate a consensus reference dataset. It uses **graph-based, time-window matching** with a weighted similarity score to match corresponding rows across reviewers, then derives consensus values via `constructRowDict` and exports reference graphs and quality-control CSVs.
 
 ## Main Algorithm Flow
 
 ### 1. Data Preprocessing (`data_engineering.py`)
-- **Input**: Multiple CSV files (typically 3 reviewers: A, B, C)
+
+- **Input**: CSV files (typically 3 reviewers per folder: A, B, C)
 - **Processing**:
-  - Parse CSV files into pandas DataFrames
-  - Convert time strings to seconds since midnight (handles 12-hour and 24-hour formats)
-  - Parse enum fields (boolean, categorical) to numeric values
-  - Handle missing/invalid values (marked as -1)
-- **Output**: List of cleaned DataFrames
+  - Load and transpose CSV (encoding `cp1252`, `low_memory=False`)
+  - Normalize strings and parse enums (boolean, user type, gender, age, clothing color, etc.) to numeric values
+  - Parse time strings to seconds since midnight (handles 12-hour and 24-hour formats, including edge cases like `15:20:20 PM`)
+  - Apply logic rules (e.g., Bus Interaction from Type of Bus Interaction, Bus Presence, Roadway Crossing, Refuge Island)
+- **Output**: List of `{path, df}` entries with cleaned, typed DataFrames
 
-### 2. Data Preparation (`data_processing.py`)
-- Sort DataFrames by length (shortest to longest)
-- **Swap**: Exchange positions of `dflist[0]` and `dflist[1]` (after sorting)
-- Calculate `range_value = (longest_df_length - shortest_df_length) + 2`
-- This range determines the search window for matching rows
+### 2. Data Preparation and Splitting (`data_processing.py`)
 
-### 3. Row Matching Algorithm (`matching.py` - `generateReferenceDataFrame`)
+For each folder of 3 CSVs:
 
-#### 3.1 Range-Based Matching Strategy
-For each row at index `i` in dataframe A:
-- Compare with rows in B within range `[i - range_value, i + range_value]`
-- Compare with rows in C within range `[i - range_value, i + range_value]`
-- This allows for slight misalignments between reviewers' data
+1. **Load** all CSVs into a list of DataFrames via `generateDateFrameList`.
+2. **Split** each DataFrame into three subsets by **Bus Interaction** and **Roadway Crossing**:
+   - **NoneBusUserCrossing**: `Bus Interaction == 0`
+   - **BusUserCrossing**: `Bus Interaction == 1` and `Roadway Crossing == 1`
+   - **BusNotCrossing**: `Bus Interaction == 1` and `Roadway Crossing == 0`
+3. **Sort** rows within each subset:
+   - NoneBusUserCrossing and BusUserCrossing: by `Crossing Start Time`
+   - BusNotCrossing: by `Bus Stop Arrival Time`
+4. **Sort** the three DataFrames in each subset by length (shortest first).
+5. For each subset, build a **reference graph** and then a **quality-control DataFrame**.
 
-#### 3.2 Matching Process
-1. **B to C Matching** (pre-computation):
-   - For each row `i` in B, find best match in C within range
-   - Store matches in `bc_matches` dictionary
+No index-range or swap step is used; matching is purely **time-window based** (see below).
 
-2. **A to B and A to C Matching**:
-   - For each row `i` in A:
-     - Find best match in B (highest score ≥ `percentageThreshold`)
-     - Find best match in C (highest score ≥ `percentageThreshold`)
-     - Mark matched rows as "visited" to prevent duplicate matches
-     - Include B→C match information
+### 3. Row Matching: Reference Graph (`matching.py` — `generateReferenceGraph`)
 
-3. **Visit Tracking**:
-   - Once a row is matched, it cannot be used again
-   - Ensures one-to-one matching relationships
+Matching is done by **time window** and **similarity score**, not by index range.
+
+#### 3.1 Time-Window Strategy
+
+- Each DataFrame in the list is sorted by a **time column** (`Crossing Start Time` or `Bus Stop Arrival Time`).
+- For a row with `targetTime`, only rows in the target DataFrame whose time lies in  
+  `[targetTime - timeThreshold, targetTime + timeThreshold]` are considered.
+- A **binary search** finds the first index in the sorted target column with value ≥ `targetTime - timeThreshold`; then a linear scan within the window computes scores and picks the best match.
+
+#### 3.2 Graph Structure
+
+- **Nodes**: `(dfName, index)` — one node per row in the three DataFrames.
+- **Edges**: For each node, up to two outgoing edges to the other two DataFrames (A→B, A→C, B→C). Each edge stores `{key: {dfName, index}, score}`.
+- **One-to-one**: A row in B or C can be used as the best match for at most one row in the source DataFrame (`used_targets` set).
+
+#### 3.3 Matching Process
+
+1. **Helper(fromDF, toDF)** runs for (dflist[0], dflist[1]), (dflist[0], dflist[2]), (dflist[1], dflist[2]).
+2. For each row in `fromDF`:
+   - Read `targetTime` from the chosen time column.
+   - If invalid (NaN or &lt; 0), record a no-match edge and continue.
+   - Use **binary search** to get the start index in `toDF` for the window.
+   - Scan forward in the window; for each candidate row, compute `computeFeatureScores(from_row, to_row, timeThreshold)`.
+   - If score ≥ `percentageThreshold` and better than current best, update best match; if score ≥ 1.0, stop scanning.
+   - Mark the chosen target `(toDFName, index)` as used; record the edge in the graph.
+3. **Result**: A graph where each node has 0–2 matches (to the other two DataFrames). This graph is later used to build QC rows and is exported to CSV.
 
 ### 4. Similarity Scoring System (`scoring.py`)
 
 #### 4.1 Time Score (`computeTimeScore`)
-- **Fields compared**: 6 time fields (Crossing Start, Bus Arrival/Departure, Refuge Island Start/End, Crossing End)
-- **Scoring method**:
-  - For each field: if both values are not -1, calculate similarity
-  - If `abs_diff < threshold`: score = 1.0 (perfect match)
-  - Otherwise: score = `exp(-abs_diff / (threshold + 10))` (exponential decay with 10-second buffer)
-- **Aggregation**: Average of all valid field scores (fields where both are -1 are skipped)
-- **Weight**: Applied at final combination (50% of total score)
+
+- **Fields compared**: Crossing Start Time, Bus Stop Arrival/Departure, Intend to Cross, Refuge Island Start/End, Crossing End.
+- **Per field**: If both values are not -1, then if `abs_diff < threshold` → 1.0, else `exp(-abs_diff / (threshold + 10))`.
+- **Aggregation**: Average over valid fields only.
+- **Weight**: 50% of final score (`TIME_SCORE_WEIGHT`).
 
 #### 4.2 Condition Score (`computeConditionScore`)
-- **Fields compared**: 12 categorical/boolean fields (User Type, Gender, Age, Bus Interaction, etc.)
-- **Scoring method**:
-  - Boolean match: 1.0 if equal, 0.0 otherwise
-  - Average all condition field scores
-- **Clothing Color** (special handling):
-  - Uses exponential decay based on brightness ranking (1-10 scale)
-  - Weighted 30% of condition score
-  - Other conditions weighted 70%
-- **Weight**: Applied at final combination (50% of total score)
+
+- **Fields compared**: User Type, Gender, Age Group, Bus Interaction, Roadway Crossing, Type of Bus Interaction, Crossing Interaction Notes, Crossing Location Relative to Bus Stop, Vehicle Traffic, Crosswalk Crossing, Did User Finish During Pedestrian Phase, Bus Presence.
+- **Per field**: 1.0 if equal, 0.0 otherwise; average over these fields.
+- **Clothing Color**: Exponential decay on brightness (1–10); weighted 30% of condition score (`COLOR_WEIGHT`); other conditions 70%.
+- **Weight**: 50% of final score (`CONDITION_SCORE_WEIGHT`).
 
 #### 4.3 Final Feature Score (`computeFeatureScores`)
-```
+
+```text
 final_score = (timeScore × 0.5) + (conditionScore × 0.5)
 ```
-- Range: [0, 1] where 1.0 = perfect match
-- Must exceed `percentageThreshold` (default 0.65) to be considered a match
 
-### 5. Consensus Determination (`quality_control.py`)
+- Range [0, 1]; must be ≥ `percentageThreshold` (e.g. 0.65) to count as a match.
 
-#### 5.1 Parameter Comparison (`compareParameters`)
-For each field, determine consensus from three reviewers (A, B, C):
+### 5. Consensus and QC from Graph (`quality_control.py`)
 
-1. **All three agree** (match_count = 3):
-   - Return that value
-   - Track as perfect agreement
+#### 5.1 Building QC Rows (`generateQualityControlDataFramebyGraph`)
 
-2. **Two agree** (match_count = 2):
-   - If A matches both B and C → return A
-   - If A matches B, and B matches C → return A (transitive)
-   - If A matches C, and B matches C → return C
-   - Track as partial agreement
+- **Input**: Reference graph from `generateReferenceGraph` and the list of three `{path, df}` for that subset.
+- For each graph node (row in one reviewer), if it has at least one valid match:
+  - Resolve the node and its matches to actual rows: `row0` (source), `row1` (first match if valid), `row2` (second match if valid). When the second match is missing, it may be inferred from the graph (transitive match).
+  - Call **constructRowDict(row0, row1, row2, index, accuracy, timeThreshold)** to get one consensus row.
+- **Output**: A DataFrame of consensus rows (QC table) and side-effect updates to `AccuracyScore` for accuracy tracking.
 
-3. **One pair matches** (match_count = 1):
-   - Return the value from the matching pair
-   - Track as partial agreement
+#### 5.2 Parameter Consensus (`compareParameters`)
 
-4. **No matches** (match_count = 0):
-   - Return empty string
-   - Track as disagreement
+For each non-time field, consensus from three reviewers (A, B, C):
 
-#### 5.2 Time Comparison (`compareTimeDistance`)
-For time fields, uses distance-based consensus:
-- Calculate pairwise distances: |A-B|, |A-C|, |B-C|
-- If all three within `timeThreshold`: return time with minimum average distance
-- If one pair within threshold: return value from that pair with smaller average distance
-- Handle missing values (-1) by imputing from available values
+- **All three agree** → return that value; track as full agreement.
+- **Two agree** → return the agreeing value (with transitive rules A–B–C); track as partial agreement.
+- **One pair matches** → return that pair’s value; track as partial agreement.
+- **No matches** → return empty string; track as disagreement.
+
+Certain fields are excluded from accuracy tracking (see `config.EXCLUDED_FROM_ACCURACY`).
+
+#### 5.3 Time Consensus (`compareTimeDistance`)
+
+- Pairwise distances |A−B|, |A−C|, |B−C|.
+- If all three within `timeThreshold`: return time with minimum average distance.
+- If one pair within threshold: return the value from that pair with smaller average distance.
+- Missing values (-1) are imputed from the other values when possible.
 
 ### 6. Output Generation
 
-#### 6.1 Reference DataFrame (`refDF`)
-- Contains consensus values for all fields
-- One row per matched set of three reviewer rows
-- Includes matching indices and similarity scores
+For each input folder:
 
-#### 6.2 Quality Control DataFrame (`dfQualityControl`)
-- Transposed matrix showing:
-  - Row indices: Field names
-  - Column indices: Reviewer names (A, B, C)
-  - Values: Original reviewer values for comparison
+- **Per-subset reference graphs** (CSV):  
+  `{folderName}NoneBusUserCrossing_graph.csv`, `{folderName}BusUserCrossing_graph.csv`, `{folderName}BusNotCrossing_graph.csv`  
+  (via `exportGraphToCsv`: from_dfName, from_index, to_dfName_1, to_index_1, score_1, …).
 
-#### 6.3 Accuracy Tracking
-- Tracks agreement levels across all fields
-- Calculates overall accuracy percentage
-- Excludes certain metadata fields from accuracy calculation
+- **Single combined QC CSV**: `{folderName}.csv` — transposed quality-control DataFrame (consensus rows from all three subsets, sorted by `sort_key` then column dropped).
+
+- **Accuracy**: Appended to an `AccuracyScore`; at the end of processing all folders, a summary is written to `interated_summary.csv` in the output path.
 
 ## Key Parameters
 
-- **`percentageThreshold`**: Minimum similarity score (0-1) for row matching (default: 0.65)
-- **`timeThreshold`**: Maximum time difference in seconds for time matching (default: 6)
-- **`range_value`**: Search window size for matching (calculated dynamically)
-- **`TIME_SCORE_WEIGHT`**: 0.5 (50% of final score)
-- **`CONDITION_SCORE_WEIGHT`**: 0.5 (50% of final score)
-- **`COLOR_WEIGHT`**: 0.3 (30% of condition score)
+- **`percentageThreshold`**: Minimum similarity score (0–1) for row matching (e.g. 0.65 in `main.py`).
+- **`timeThreshold`**: Time window half-width in seconds (e.g. 10 in `main.py`); also used inside time scoring.
+- **`timeColumn`**: Column used for sorting and time window (e.g. `"Crossing Start Time"` or `"Bus Stop Arrival Time"`).
+- **`TIME_SCORE_WEIGHT`**: 0.5.
+- **`CONDITION_SCORE_WEIGHT`**: 0.5.
+- **`COLOR_WEIGHT`**: 0.3 within condition score.
 
 ## Algorithm Characteristics
 
-1. **Robust to Misalignment**: Range-based matching handles cases where reviewers have different numbers of observations
-2. **Weighted Scoring**: Combines temporal and categorical features with equal weight
-3. **Exponential Decay**: Time differences beyond threshold still contribute to score (with buffer)
-4. **Consensus-Based**: Uses majority agreement when possible, falls back to best match when needed
-5. **One-to-One Matching**: Prevents duplicate matches through visit tracking
-6. **Missing Data Handling**: Skips invalid fields (-1) in scoring, handles gracefully in consensus
+1. **Time-window matching**: Uses a symmetric time window and binary search for candidate rows; no index-range parameter.
+2. **Graph-based**: Explicit reference graph (nodes = rows, edges = best matches) supports transitive resolution and export.
+3. **Three subsets**: NoneBusUserCrossing, BusUserCrossing, BusNotCrossing each have their own graph and QC table.
+4. **Weighted scoring**: 50% time, 50% condition (with clothing color 30% of condition).
+5. **One-to-one matches**: `used_targets` ensures each row is used at most once as a match target.
+6. **Consensus via constructRowDict**: Same comparison logic for parameters and time; QC rows built from the graph.
 
 ## Example Workflow
 
-1. Load 3 CSV files → 3 DataFrames
-2. Sort by length, swap first two
-3. For each row in shortest DataFrame:
-   - Find best match in other two DataFrames (within range)
-   - Calculate similarity scores
-   - If score ≥ threshold, create match
-4. For each matched triplet:
-   - Compare all fields to determine consensus
-   - Generate reference row with consensus values
-5. Output reference DataFrame and quality control matrix
+1. Point `main.py` at `INPUT_DATA_PATH` and `OUTPUT_PATH` (e.g. via `config.py`).
+2. For each folder in the input path, load 3 CSVs → 3 DataFrames; split into NoneBusUserCrossing, BusUserCrossing, BusNotCrossing; sort each subset by length and by the appropriate time column.
+3. For each subset, run `generateReferenceGraph(...)` with `timeThreshold` and `percentageThreshold` → reference graph.
+4. Run `generateQualityControlDataFramebyGraph(graph, dflist, accuracy, timeThreshold)` → QC DataFrame; append accuracy for the folder.
+5. Export the three graphs to CSV and the combined QC to `{folderName}.csv`.
+6. After all folders, write `interated_summary.csv` and run `performAccuracyTest` if human QC files are configured.
