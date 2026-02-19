@@ -117,34 +117,6 @@ def computeDataFolderToCSV(resourceFolderPath, outputFolderPath, percentageThres
     accuracyDF.to_csv(os.path.join(outputFolderPath, 'interated_summary.csv'), header=True)
 
 
-def computeDataFolderToCSVWithIndex(resourceFolderPath, outputFolderPath, percentageThreshold, timeThreshold, threshold_name, index):
-    """Process all folders in resource path and generate CSV outputs with index for batch processing.
-    
-    Args:
-        resourceFolderPath: Path to input data folders
-        outputFolderPath: Path to output directory
-        percentageThreshold: Percentage threshold value
-        timeThreshold: Time threshold value
-        threshold_name: Name identifier for the threshold type (e.g., 'percentage', 'time')
-        index: Index value for batch processing
-    """
-    accuracy = AccuracyScore()
-    
-    for fileFolder in os.listdir(resourceFolderPath):
-        filePath = os.path.join(resourceFolderPath, fileFolder)
-        if os.path.isdir(filePath):
-            _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, timeThreshold)
-    
-    # Ensure accuracy_summary directory exists
-    accuracySummaryDir = os.path.join(outputFolderPath, 'accuracy_summary')
-    os.makedirs(accuracySummaryDir, exist_ok=True)
-    
-    accuracyDF = pd.DataFrame(accuracy.getFilesAccuracy(), columns=['Location', 'Accuracy'])
-    accuracyDF.to_csv(
-        os.path.join(accuracySummaryDir, f'accuracy_summary_{threshold_name}_{index}.csv'),
-        header=True
-    )
-
 
 def performAccuracyTest(outputFile, humanQualityFile):
     """Perform accuracy test comparing computed output with human quality control."""

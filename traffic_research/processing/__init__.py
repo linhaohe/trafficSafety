@@ -2,7 +2,6 @@
 
 from .data_processing import (
     computeDataFolderToCSV,
-    computeDataFolderToCSVWithIndex,
     performAccuracyTest
 )
 from .quality_control import (
