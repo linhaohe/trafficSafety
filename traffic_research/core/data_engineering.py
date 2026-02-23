@@ -260,21 +260,23 @@ class DataEngining:
         type_bus_interaction = row[TYPE_BUS_INTERACTION]
         bus_interaction = row[BUS_INTERACTION]
         crossing_loc_rel_bus = row[CROSSING_LOC_REL_BUS]
-
+        
+        # --- Rule 2: Normalize 'other' type when Bus Interaction is yes ---
+        if type_bus_interaction == BUS_INTERACTION_OTHER and bus_interaction == YES:
+            row[TYPE_BUS_INTERACTION] = BUS_INTERACTION_UNKNOWN
+            type_bus_interaction = BUS_INTERACTION_UNKNOWN
+            
         has_explicit_bus_type = type_bus_interaction != BUS_INTERACTION_OTHER
         row[BUS_INTERACTION] = YES if has_explicit_bus_type else NO
         bus_interaction = row[BUS_INTERACTION]
 
-        # --- Rule 2: Bus Presence ---
+            
+        # --- Rule 3: Bus Presence ---
         if has_explicit_bus_type or bus_interaction == YES or crossing_loc_rel_bus != CROSSING_LOC_OTHER:
             row[BUS_PRESENCE] = YES
         else:
             row[BUS_PRESENCE] = NO
 
-        # --- Rule 3: Normalize 'other' type when Bus Interaction is yes ---
-        if type_bus_interaction == BUS_INTERACTION_OTHER and bus_interaction == YES:
-            row[TYPE_BUS_INTERACTION] = BUS_INTERACTION_UNKNOWN
-            type_bus_interaction = BUS_INTERACTION_UNKNOWN
 
         # --- Rule 4: Roadway Crossing is 'yes' if any crossing activity is indicated ---
         has_crossing_activity = (
