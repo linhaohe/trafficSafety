@@ -90,10 +90,10 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
         ignore_index=False)
     dfQualityControl = dfQualityControl.sort_values(by=['sort_key'], inplace=False).drop('sort_key', axis=1)
     dfQualityControl = dfQualityControl.transpose()
-    
-    exportGraphToCsv(dfNoneBusUserCrossingGraph, os.path.join(outputFolderPath, folderName) + 'NoneBusUserCrossing_graph.csv')
-    exportGraphToCsv(dfBusUserCrossingGraph, os.path.join(outputFolderPath, folderName) + 'BusUserCrossing_graph.csv')
-    exportGraphToCsv(dfBusNotCrossingGraph, os.path.join(outputFolderPath, folderName) + 'BusNotCrossing_graph.csv')
+    outputGraphFolderPath = os.path.join(outputFolderPath, 'graph')
+    exportGraphToCsv(dfNoneBusUserCrossingGraph, os.path.join(outputGraphFolderPath, folderName) + 'NoneBusUserCrossing_graph.csv')
+    exportGraphToCsv(dfBusUserCrossingGraph, os.path.join(outputGraphFolderPath, folderName) + 'BusUserCrossing_graph.csv')
+    exportGraphToCsv(dfBusNotCrossingGraph, os.path.join(outputGraphFolderPath, folderName) + 'BusNotCrossing_graph.csv')
     accuracy.appendFileAccuracy(os.path.basename(filePath), accuracy.getAccuracy())
     accuracy.reset()
     dfQualityControl.to_csv(
