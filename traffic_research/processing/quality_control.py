@@ -33,7 +33,15 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
         if value == -1:
             return default
         return str(value) if value != default else default
-    
+    def combineNotes(field):
+        list = []
+        if row0 is not None and row0[field] != 'nan' and row0[field] !='None':
+            list.append(row0[field])
+        if row1 is not None and row1[field] != 'nan' and row1[field] !='None':
+            list.append(row1[field])
+        if row2 is not None and row2[field] != 'nan' and row2[field] !='None':
+            list.append(row2[field])
+        return list
     # Location and infrastructure fields
     videoTitle = safeStr(compare('Video Title'))
     locationName = safeStr(compare('Location Name'))
@@ -87,6 +95,10 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     ) if t > 0]
     minTime = min(times_for_min) if times_for_min else -1
     
+    noteworthyEvents = combineNotes('Noteworthy Events')
+    busNoteworthyEvents = combineNotes('Bus Noteworthy Events')
+    generalReviewerNotes = combineNotes('General Reviewer Notes')
+    
     return {
         "Video Title": videoTitle,
         "sort_key": minTime,
@@ -111,7 +123,7 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
         "Type of Bus Interaction": typeOfBusInteraction,
         "Bus Stop Arrival Time": busArrivalTime,
         "Bus Stop Departure Time": busDepartureTime,
-        "Noteworthy Events": '0',
+        "Noteworthy Events": noteworthyEvents,
         "Crosswalk Crossing": crosswalkCrossing,
         "Pedestrian Phase Crossing": pedestrianPhaseCrossing,
         "Intend to Cross Timestamp": intendToCrossTimestamp,
@@ -124,9 +136,9 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
         "Bus Presence": busPresence,
         "Crossing Location Relative to Bus": crossingLocationToBus,
         "Crossing Location Relative to Bus Stop": crossingLocationRelativeToBusStop,
-        "Bus Noteworthy Events": '0',
+        "Bus Noteworthy Events": busNoteworthyEvents,
         "Vehicle Traffic": trafficCondition,
-        "General Reviewer Notes": '0'
+        "General Reviewer Notes": generalReviewerNotes
     }
 
 def generateQualityControlDataFramebyGraph(refGraph, dflist, accuracy, timeThreshold):

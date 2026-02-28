@@ -1,0 +1,86 @@
+Parameter of interest
+Num Bus Routes
+Num Bus Trips
+Dist To Street
+Travel Lanes
+AADT
+Left_Sidewalk_Width
+Right_Sidewalk_Width
+Left Shoulder Width
+Right Shoulder Width
+Regulation Speed Limit
+Length
+Dist To Intersecting Street
+Intersecting Lanes
+Wheelchair Boarding
+Marked Bus Sign Present
+Dist To Intersection Meters
+Dist To Signal Meters
+Intersection Crosswalks
+Intersection Crosswalk Polygons
+Signal Crosswalks
+Bus Stop Crosswalks
+crash_count
+crash_count_K
+crash_count_A
+crash_count_B
+crash_count_C
+crash_count_O
+BG Population
+BG Housing Units
+BG Area Sqft
+Pct Female Over65
+Pct Male Over 65
+Pct Non-Hisp Black
+Pct Non-Hisp Multiracial
+English Speakers
+Pct English Speakers
+Pct No English
+Pct Spanish Speakers
+Pct Spanish Limited Eng
+Pct Euro Speakers
+Pct Euro Limited Eng
+Pct Asian Speakers
+Pct Asian Limited Eng
+Pct Other Lang Speakers
+Median HH Income
+Pct Less Than HS
+Pct HS Grad
+Pct Bachelors Plus
+Pct Commute Transit
+Pct Commute Walk
+mipday_phh
+Daily VMT Pass Veh
+Daily VMT All
+Passenger Veh Age
+Census Urbanized Area
+Access Control
+Num Lanes
+Num Lanes Opposing
+Road Width ft
+Primary Shoulder Type
+SHLDR_LT_T
+Opposing Direction Shoulder Type
+Sidewalk Width Left ft
+Sidewalk Width Right ft
+Speed Limit2
+Opposing Direction Speed Limit
+Truck Excl Time
+Truck Restrict Route
+Right of way width
+Segment Length ft
+Dist To Bike Route ft
+Bike Facility Type
+Dist To Nearest Grocery ft
+Dist To Nearest Library ft
+Count Library within 2000ft
+Dist To Nearest Schools ft
+Count All Schools 2000ft
+Count MidHi Schools 2000ft
+Count Priv Schools within 2000ft
+Count Colleges within 2000ft
+Count Groc Schools Libr within 2000ft
+Pop Density
+Num of Lanes
+Speed Limit
+Annual Crash Rate

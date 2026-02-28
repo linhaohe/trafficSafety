@@ -380,7 +380,9 @@ class DataEngining:
         )
 
         row['Vehicle Traffic'] = DataEngining.parseEnum(get('Vehicle Traffic'), DataEngining.trafficVolume)
-
+        row['Noteworthy Events'] = str(get('Noteworthy Events'))
+        row['Bus Noteworthy Events'] = str(get('Bus Noteworthy Events'))
+        row['General Reviewer Notes'] = str(get('General Reviewer Notes'))
         row = DataEngining.logic_check(row)
         return row
 
