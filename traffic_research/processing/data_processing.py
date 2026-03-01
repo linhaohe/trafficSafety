@@ -111,7 +111,11 @@ def computeDataFolderToCSV(resourceFolderPath, outputFolderPath, percentageThres
            allComputedRows=pd.concat([allComputedRows, _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, timeThreshold)], ignore_index=False)
     accuracyDF = pd.DataFrame(accuracy.getFilesAccuracy(), columns=['Location', 'Accuracy'])
     accuracyDF.to_csv(os.path.join(outputFolderPath, 'interated_summary.csv'), header=True)
-    return allComputedRows
+    allComputedRows.transpose().to_csv(
+        os.path.join(outputFolderPath, 'allComputedRows.csv'), 
+        index=True, 
+        header=False
+    )
 
 
 def performAccuracyTest(outputFile, humanQualityFile):

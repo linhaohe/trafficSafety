@@ -22,7 +22,9 @@ from .data_engineering import (
     INT_COLS,
     FLOAT_COLS
 )
-
+from .clustering import (
+    runMode
+)
 __all__ = [
     'AccuracyScore',
     'calculateTimeScore',
@@ -40,5 +42,6 @@ __all__ = [
     'generateDateFrame',
     'float_cols',
     'INT_COLS',
-    'FLOAT_COLS'
+    'FLOAT_COLS',
+    'runMode'
 ]

@@ -430,7 +430,7 @@ def generateDateFrameList(path_urls):
 
 def generateDateFrame(path_url):
     """Generate a single DataFrame from a file path."""
-    df = DataEngining.load_csv(path_url)
-    df = df.apply(DataEngining.dataEnginingRow, axis=1)
-    df = df.astype(DTYPE_MAPPING)
-    return df
+    load_df = DataEngining.load_csv(path_url)
+    load_df = load_df.apply(DataEngining.dataEnginingRow, axis=1)
+    load_df = load_df.astype(DTYPE_MAPPING)
+    return load_df

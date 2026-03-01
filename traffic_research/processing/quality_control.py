@@ -11,98 +11,66 @@ from traffic_research.core.matching import compareParameters, compareTimeDistanc
 from traffic_research.core.utils import enumToString, secondsToTimeString
 from config import EXCLUDED_FROM_ACCURACY, DEFAULT_TIME_THRESHOLD
 
-
-def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
-    """Construct a row dictionary by comparing three reviewer rows."""
-    def compare(field):
-        return compareParameters(row0, row1, row2, field, accuracy)
-    
-    def compareTime(field):
-        time0 = row0[field] if row0 is not None else -1
-        time1 = row1[field] if row1 is not None else -1
-        time2 = row2[field] if row2 is not None else -1
-        return compareTimeDistance(time0, time1, time2, accuracy, timeThreshold)
-    
-    def enumToStr(field, enumType, default=""):
-        """Convert enum value to string with optional default for empty values."""  
-        result = enumToString(compare(field), enumType)
-        return result if result else default
+def parseEnumObjectRow(rowObject):
     
     def safeStr(value, default=""):
         """Convert value to string, using default if value is -1 or empty."""
         if value == -1:
             return default
         return str(value) if value != default else default
-    def combineNotes(field):
-        list = []
-        if row0 is not None and row0[field] != 'nan' and row0[field] !='None':
-            list.append(row0[field])
-        if row1 is not None and row1[field] != 'nan' and row1[field] !='None':
-            list.append(row1[field])
-        if row2 is not None and row2[field] != 'nan' and row2[field] !='None':
-            list.append(row2[field])
-        return list
-    # Location and infrastructure fields
-    videoTitle = safeStr(compare('Video Title'))
-    locationName = safeStr(compare('Location Name'))
-    busStopIDs = safeStr(compare('Bus Stop IDs/Addresses'))
-    busStopRouteCount = compare('Count of Bus Stop Routes')
-    crosswalkLocationRelativeToBusStop = compare('Crosswalk Location Relative to Bus Stop')
-    crossingTreatment = compare('Crossing Treatment')
-    refugeIsland = enumToStr('Refuge Island', DataEngining.boolean)
     
-    # User information fields
-    userCount = index + 1
-    userType = enumToStr('User Type', DataEngining.userType)
-    groupSize = safeStr(compare('Group Size'))
-    estimatedGender = enumToStr('Estimated Gender', DataEngining.gender, default="hard to tell")
-    estimatedAgeGroup = enumToStr('Estimated Age Group', DataEngining.ageGroup, default="hard to tell")
-    clothingColor = enumToStr('Clothing Color', DataEngining.clothingColor, default="hard to tell")
-    visibilityScale = compare('Visibility Scale')
-    estimatedVisibleDistraction = enumToStr('Estimated Visible Distrction', DataEngining.boolean)
-    userNotes = compare('User Notes')
+    def enumToStr(field, enumType, default=""):
+        """Convert enum value to string with optional default for empty values."""  
+        result = enumToString(field, enumType)
+        return result if result else default
     
-    # Bus interaction fields
-    busInteraction = enumToStr('Bus Interaction', DataEngining.boolean)
-    roadwayCrossing = enumToStr('Roadway Crossing', DataEngining.boolean)
-    typeOfBusInteraction = enumToStr('Type of Bus Interaction', DataEngining.busInteractions)
-    busArrivalTime = secondsToTimeString(compareTime('Bus Stop Arrival Time'))
-    busDepartureTime = secondsToTimeString(compareTime('Bus Stop Departure Time'))
-    busPresence = enumToStr('Bus Presence', DataEngining.boolean)
     
-    # Crossing timing fields
-    intendToCrossTimestamp = secondsToTimeString(compareTime('Intend to Cross Timestamp'))
-    crossingStartTime = secondsToTimeString(compareTime('Crossing Start Time'))
-    refugeIslandStartTime = secondsToTimeString(compareTime('Refuge Island Start Time'))
-    refugeIslandEndTime = secondsToTimeString(compareTime('Refuge Island End Time'))
-    crossingEndTime = secondsToTimeString(compareTime('Crossing End Time'))
+    videoTitle = safeStr(rowObject['Video Title'])
+    locationName = safeStr(rowObject['Location Name'])
+    busStopIDs = safeStr(rowObject['Bus Stop IDs/Addresses'])
+    busStopRouteCount = rowObject['Count of Bus Stop Routes']
+    crosswalkLocationRelativeToBusStop = rowObject['Crosswalk Location Relative to Bus Stop']
+    crossingTreatment = rowObject['Crossing Treatment']
+    refugeIsland = enumToStr(rowObject['Refuge Island'], DataEngining.boolean)
     
-    # Crossing behavior fields
-    crosswalkCrossing = enumToStr('Crosswalk Crossing', DataEngining.boolean)
-    # print(f"crosswalkCrossing: {crosswalkCrossing}")
-    pedestrianPhaseCrossing = enumToStr('Pedestrian Phase Crossing', DataEngining.boolean)
-    finishedDuringPedsPhase = enumToStr('Did User Finish Crossing During Pedestrian Phase', DataEngining.boolean)
-    walkingInteraction = enumToStr('Crossing Interaction Notes', DataEngining.walkInteractions)
-    crossingLocationToBus = enumToStr('Crossing Location Relative to Bus', DataEngining.crossingLocationRelativeToBus)
-    crossingLocationRelativeToBusStop = enumToStr('Crossing Location Relative to Bus Stop', DataEngining.crossingLocationRelativeToBusStop)
+    userType = enumToStr(rowObject['User Type'], DataEngining.userType)
+    groupSize = safeStr(rowObject['Group Size'])
+    estimatedGender = enumToStr(rowObject['Estimated Gender'], DataEngining.gender, default="hard to tell")
+    estimatedAgeGroup = enumToStr(rowObject['Estimated Age Group'], DataEngining.ageGroup, default="hard to tell")
+    clothingColor = enumToStr(rowObject['Clothing Color'], DataEngining.clothingColor, default="hard to tell")
+    visibilityScale = rowObject['Visibility Scale']
+    estimatedVisibleDistraction = enumToStr(rowObject['Estimated Visible Distrction'], DataEngining.boolean)
+    userNotes = rowObject['User Notes']
     
-    # Traffic and notes fields
-    trafficCondition = enumToStr('Vehicle Traffic', DataEngining.trafficVolume)
-    times_for_min = [t for t in (
-        compareTime('Bus Stop Arrival Time'),
-        compareTime('Intend to Cross Timestamp'),
-        compareTime('Crossing Start Time'),
-    ) if t > 0]
-    minTime = min(times_for_min) if times_for_min else -1
+    busInteraction = enumToStr(rowObject['Bus Interaction'], DataEngining.boolean)
+    roadwayCrossing = enumToStr(rowObject['Roadway Crossing'], DataEngining.boolean)
+    typeOfBusInteraction = enumToStr(rowObject['Type of Bus Interaction'], DataEngining.busInteractions)
+    busArrivalTime = secondsToTimeString(rowObject['Bus Stop Arrival Time'])
+    busDepartureTime = secondsToTimeString(rowObject['Bus Stop Departure Time'])
+    busPresence = enumToStr(rowObject['Bus Presence'], DataEngining.boolean)
     
-    noteworthyEvents = combineNotes('Noteworthy Events')
-    busNoteworthyEvents = combineNotes('Bus Noteworthy Events')
-    generalReviewerNotes = combineNotes('General Reviewer Notes')
+    intendToCrossTimestamp = secondsToTimeString(rowObject['Intend to Cross Timestamp'])
+    crossingStartTime = secondsToTimeString(rowObject['Crossing Start Time'])
+    refugeIslandStartTime = secondsToTimeString(rowObject['Refuge Island Start Time'])
+    refugeIslandEndTime = secondsToTimeString(rowObject['Refuge Island End Time'])
+    crossingEndTime = secondsToTimeString(rowObject['Crossing End Time'])
     
+    crosswalkCrossing = enumToStr(rowObject['Crosswalk Crossing'], DataEngining.boolean)
+    pedestrianPhaseCrossing = enumToStr(rowObject['Pedestrian Phase Crossing'], DataEngining.boolean)
+    finishedDuringPedsPhase = enumToStr(rowObject['Did User Finish Crossing During Pedestrian Phase'], DataEngining.boolean)
+    walkingInteraction = enumToStr(rowObject['Crossing Interaction Notes'], DataEngining.walkInteractions)
+    crossingLocationToBus = enumToStr(rowObject['Crossing Location Relative to Bus'], DataEngining.crossingLocationRelativeToBus)
+    crossingLocationRelativeToBusStop = enumToStr(rowObject['Crossing Location Relative to Bus Stop'], DataEngining.crossingLocationRelativeToBusStop)
+    trafficCondition = enumToStr(rowObject['Vehicle Traffic'], DataEngining.trafficVolume)
+    initials = rowObject['Initials']
+    userCount = rowObject['User Count']
+    noteworthyEvents = rowObject['Noteworthy Events']
+    busNoteworthyEvents = rowObject['Bus Noteworthy Events']
+    generalReviewerNotes = rowObject['General Reviewer Notes']
+
     return {
         "Video Title": videoTitle,
-        "sort_key": minTime,
-        'Initials': '',
+        'Initials': initials,
         "Location Name": locationName,
         "Bus Stop IDs/Addresses": busStopIDs,
         "Count of Bus Stop Routes": busStopRouteCount,
@@ -140,6 +108,125 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
         "Vehicle Traffic": trafficCondition,
         "General Reviewer Notes": generalReviewerNotes
     }
+    
+def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
+    """Construct a row dictionary by comparing three reviewer rows."""
+    def compare(field):
+        return compareParameters(row0, row1, row2, field, accuracy)
+    
+    def compareTime(field):
+        time0 = row0[field] if row0 is not None else -1
+        time1 = row1[field] if row1 is not None else -1
+        time2 = row2[field] if row2 is not None else -1
+        return compareTimeDistance(time0, time1, time2, accuracy, timeThreshold)
+    
+    def combineNotes(field):
+        list = []
+        if row0 is not None and row0[field] != 'nan' and row0[field] !='None':
+            list.append(row0[field])
+        if row1 is not None and row1[field] != 'nan' and row1[field] !='None':
+            list.append(row1[field])
+        if row2 is not None and row2[field] != 'nan' and row2[field] !='None':
+            list.append(row2[field])
+        return list
+    # Location and infrastructure fields
+    videoTitle = compare('Video Title')
+    locationName = compare('Location Name')
+    busStopIDs = compare('Bus Stop IDs/Addresses')
+    busStopRouteCount = compare('Count of Bus Stop Routes')
+    crosswalkLocationRelativeToBusStop = compare('Crosswalk Location Relative to Bus Stop')
+    crossingTreatment = compare('Crossing Treatment')
+    refugeIsland = compare('Refuge Island')
+    
+    # User information fields
+    userCount = index + 1
+    userType = compare('User Type')
+    groupSize = compare('Group Size')
+    estimatedGender = compare('Estimated Gender')
+    estimatedAgeGroup = compare('Estimated Age Group')
+    clothingColor = compare('Clothing Color')
+    visibilityScale = compare('Visibility Scale')
+    estimatedVisibleDistraction = compare('Estimated Visible Distrction')
+    userNotes = compare('User Notes')
+    
+    # Bus interaction fields
+    busInteraction = compare('Bus Interaction')
+    roadwayCrossing = compare('Roadway Crossing')
+    typeOfBusInteraction = compare('Type of Bus Interaction')
+    busArrivalTime = compareTime('Bus Stop Arrival Time')
+    busDepartureTime = compareTime('Bus Stop Departure Time')
+    busPresence = compare('Bus Presence')
+    
+    # Crossing timing fields
+    intendToCrossTimestamp = compareTime('Intend to Cross Timestamp')
+    crossingStartTime = compareTime('Crossing Start Time')
+    refugeIslandStartTime = compareTime('Refuge Island Start Time')
+    refugeIslandEndTime = compareTime('Refuge Island End Time')
+    crossingEndTime = compareTime('Crossing End Time')
+    
+    # Crossing behavior fields
+    crosswalkCrossing = compare('Crosswalk Crossing')
+    pedestrianPhaseCrossing = compare('Pedestrian Phase Crossing')
+    finishedDuringPedsPhase = compare('Did User Finish Crossing During Pedestrian Phase')
+    walkingInteraction = compare('Crossing Interaction Notes')
+    crossingLocationToBus = compare('Crossing Location Relative to Bus')
+    crossingLocationRelativeToBusStop = compare('Crossing Location Relative to Bus Stop')
+    
+    # Traffic and notes fields
+    trafficCondition = compare('Vehicle Traffic')
+    times_for_min = [t for t in (
+        compareTime('Bus Stop Arrival Time'),
+        compareTime('Intend to Cross Timestamp'),
+        compareTime('Crossing Start Time'),
+    ) if t > 0]
+    minTime = min(times_for_min) if times_for_min else -1
+    
+    noteworthyEvents = combineNotes('Noteworthy Events')
+    busNoteworthyEvents = combineNotes('Bus Noteworthy Events')
+    generalReviewerNotes = combineNotes('General Reviewer Notes')
+    
+    result = parseEnumObjectRow({
+        "Video Title": videoTitle,
+        'Initials': '',
+        "Location Name": locationName,
+        "Bus Stop IDs/Addresses": busStopIDs,
+        "Count of Bus Stop Routes": busStopRouteCount,
+        "Crosswalk Location Relative to Bus Stop": crosswalkLocationRelativeToBusStop,
+        "Crossing Treatment": crossingTreatment,
+        "Refuge Island": refugeIsland,
+        "User Count": userCount,
+        "User Type": userType,
+        "Group Size": groupSize,
+        "Estimated Gender": estimatedGender,
+        "Estimated Age Group": estimatedAgeGroup,
+        "Clothing Color": clothingColor,
+        "Visibility Scale": visibilityScale,
+        "Estimated Visible Distrction": estimatedVisibleDistraction,
+        "User Notes": userNotes,
+        "Bus Interaction": busInteraction,
+        "Roadway Crossing": roadwayCrossing,
+        "Type of Bus Interaction": typeOfBusInteraction,
+        "Bus Stop Arrival Time": busArrivalTime,
+        "Bus Stop Departure Time": busDepartureTime,
+        "Noteworthy Events": noteworthyEvents,
+        "Crosswalk Crossing": crosswalkCrossing,
+        "Pedestrian Phase Crossing": pedestrianPhaseCrossing,
+        "Intend to Cross Timestamp": intendToCrossTimestamp,
+        "Crossing Start Time": crossingStartTime,
+        "Refuge Island Start Time": refugeIslandStartTime,
+        "Refuge Island End Time": refugeIslandEndTime,
+        "Did User Finish Crossing During Pedestrian Phase": finishedDuringPedsPhase,
+        "Crossing End Time": crossingEndTime,
+        "Crossing Interaction Notes": walkingInteraction,
+        "Bus Presence": busPresence,
+        "Crossing Location Relative to Bus": crossingLocationToBus,
+        "Crossing Location Relative to Bus Stop": crossingLocationRelativeToBusStop,
+        "Bus Noteworthy Events": busNoteworthyEvents,
+        "Vehicle Traffic": trafficCondition,
+        "General Reviewer Notes": generalReviewerNotes
+    })
+    result["sort_key"] = minTime
+    return result
 
 def generateQualityControlDataFramebyGraph(refGraph, dflist, accuracy, timeThreshold):
     """Build QC rows from refGraph by resolving each node to (row0, row1?, row2?) and calling constructRowDict."""
