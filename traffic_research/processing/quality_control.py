@@ -68,7 +68,7 @@ def parseEnumObjectRow(rowObject):
     busNoteworthyEvents = rowObject['Bus Noteworthy Events']
     generalReviewerNotes = rowObject['General Reviewer Notes']
 
-    return {
+    result = {
         "Video Title": videoTitle,
         'Initials': initials,
         "Location Name": locationName,
@@ -108,6 +108,9 @@ def parseEnumObjectRow(rowObject):
         "Noteworthy Events": noteworthyEvents,
         "General Reviewer Notes": generalReviewerNotes
     }
+    if "CrossingDuration" in rowObject:
+        result["CrossingDuration"] = rowObject['CrossingDuration']
+    return result
     
 def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     """Construct a row dictionary by comparing three reviewer rows."""
