@@ -38,7 +38,7 @@ def parseGroup(group):
 
 def visualize_clusters(X_scaled, labels, n_clusters, output_path):
     """Reduce scaled features to 2D with PCA and scatter-plot by cluster."""
-    pca = PCA(n_components=2, random_state=42)
+    pca = PCA(n_components=2, random_state=None)
     X_2d = pca.fit_transform(X_scaled)
 
     fig, ax = plt.subplots(figsize=(10, 8))
