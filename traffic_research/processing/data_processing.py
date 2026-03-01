@@ -45,11 +45,6 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
         dfBusNotCrossing.append(dfBusNotCrossingRow)
     for df in dfNoneBusUserCrossing:
         df['df'] = df['df'].sort_values(by=['Crossing Start Time'], inplace=False)
-    #     df['df'].transpose().to_csv(
-    #     os.path.join(outputFolderPath, os.path.basename(df['path'])) + '.csv', 
-    #     index=True, 
-    #     header=False
-    # )
         
     for df in dfBusUserCrossing:
         df['df'] = df['df'].sort_values(by=['Crossing Start Time'], inplace=False)
@@ -89,33 +84,34 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
         [dfNoneBusUserCrossingGraphQC, dfBusUserCrossingGraphQC, dfBusNotCrossingGraphQC],
         ignore_index=False)
     dfQualityControl = dfQualityControl.sort_values(by=['sort_key'], inplace=False).drop('sort_key', axis=1)
-    dfQualityControl = dfQualityControl.transpose()
+    
+    # dfQualityControl = dfQualityControl.transpose()
     outputGraphFolderPath = os.path.join(outputFolderPath, 'graph')
     exportGraphToCsv(dfNoneBusUserCrossingGraph, os.path.join(outputGraphFolderPath, folderName) + 'NoneBusUserCrossing_graph.csv')
     exportGraphToCsv(dfBusUserCrossingGraph, os.path.join(outputGraphFolderPath, folderName) + 'BusUserCrossing_graph.csv')
     exportGraphToCsv(dfBusNotCrossingGraph, os.path.join(outputGraphFolderPath, folderName) + 'BusNotCrossing_graph.csv')
     accuracy.appendFileAccuracy(os.path.basename(filePath), accuracy.getAccuracy())
     accuracy.reset()
-    dfQualityControl.to_csv(
+    dfQualityControl.transpose().to_csv(
         os.path.join(outputFolderPath, folderName) + '.csv', 
         index=True, 
         header=False
     )
+    return dfQualityControl
 
 
 
 def computeDataFolderToCSV(resourceFolderPath, outputFolderPath, percentageThreshold, timeThreshold):
     """Process all folders in resource path and generate CSV outputs."""
+    allComputedRows = pd.DataFrame(columns=[])
     accuracy = AccuracyScore()
-    
     for fileFolder in os.listdir(resourceFolderPath):
         filePath = os.path.join(resourceFolderPath, fileFolder)
         if os.path.isdir(filePath):
-            _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, timeThreshold)
-    
+           allComputedRows=pd.concat([allComputedRows, _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, timeThreshold)], ignore_index=False)
     accuracyDF = pd.DataFrame(accuracy.getFilesAccuracy(), columns=['Location', 'Accuracy'])
     accuracyDF.to_csv(os.path.join(outputFolderPath, 'interated_summary.csv'), header=True)
-
+    return allComputedRows
 
 
 def performAccuracyTest(outputFile, humanQualityFile):
