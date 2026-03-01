@@ -12,9 +12,16 @@ from traffic_research.processing.quality_control import parseEnumObjectRow
 
 # Time columns to exclude from clustering features
 ExcludedColumns = [
-    'Bus Stop Arrival Time', 'Bus Stop Departure Time', 'Intend to Cross Timestamp',
-    'Crossing Start Time', 'Refuge Island Start Time', 'Refuge Island End Time',
-    'Crossing End Time','Bus Stop IDs/Addresses','Crosswalk Location Relative to Bus Stop',
+    'Bus Stop Arrival Time', 
+    'Bus Stop Departure Time', 
+    'Intend to Cross Timestamp',
+    'Crossing Start Time', 
+    'Refuge Island Start Time', 
+    'Refuge Island End Time',
+    'Crossing End Time',
+    'Bus Stop IDs/Addresses',
+    'Crosswalk Location Relative to Bus Stop',
+    'Crossing Duration',
     'User Count','Crossing Treatment','Video Title','Initials','Location Name','User Notes',
     'Noteworthy Events',
     'General Reviewer Notes',
