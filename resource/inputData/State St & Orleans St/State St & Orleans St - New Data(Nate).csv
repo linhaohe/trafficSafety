@@ -20,7 +20,7 @@ Roadway Crossing,No,Yes,No,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes,No,No,No,Yes,Yes,
 Type of Bus Interaction,Alighted,Alighted,Boarded,Alighted,Alighted,,,,,,,Alighted,Boarded,Boarded,Boarded,,,,Alighted,,Boarded,,,,,,,,,,
 Bus Stop Arrival Time,3:01:46 PM,3:01:46 PM,3:14:44 PM,3:14:44 PM,3:15:43 PM,,,,,,,3:26:09 PM,3:26:09 PM,3:26:09 PM,3:26:09 PM,,,,3:34:16 PM,,3:43:33 PM,,,,,,,,,,
 Bus Stop Departure Time,3:01:57 PM,3:01:57 PM,3:15:33 PM,3:15:33 PM,3:15:49 PM,,,,,,,3:26:37 PM,3:26:37 PM,3:26:37 PM,3:26:37 PM,,,,3:34:27 PM,,3:43:54 PM,,,,,,,,,,
-Noteworthy Events,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+Bus Noteworthy Events,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 Crosswalk Crossing,No,No,No,No,No,Yes,Yes,No,Yes,Yes,Yes,No,No,No,No,No,Yes,Yes,No,Yes,No,No,Yes,Yes,Yes,Yes,No,No,Yes,Yes,Yes
 Pedestrian Phase Crossing,,N/A,,,,Yes,Yes,,Yes,Yes,Yes,,,,,No,No,No,,Yes,,,Yes,Yes,Yes,No,No,No,No,No,No
 Intend to Cross Timestamp,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,

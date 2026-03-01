@@ -383,6 +383,7 @@ class DataEngining:
         row['Noteworthy Events'] = str(get('Noteworthy Events'))
         row['Bus Noteworthy Events'] = str(get('Bus Noteworthy Events'))
         row['General Reviewer Notes'] = str(get('General Reviewer Notes'))
+        row['User Notes'] = str(get('User Notes'))
         row = DataEngining.logic_check(row)
         return row
 

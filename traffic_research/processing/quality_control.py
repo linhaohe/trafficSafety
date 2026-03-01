@@ -91,7 +91,7 @@ def parseEnumObjectRow(rowObject):
         "Type of Bus Interaction": typeOfBusInteraction,
         "Bus Stop Arrival Time": busArrivalTime,
         "Bus Stop Departure Time": busDepartureTime,
-        "Noteworthy Events": noteworthyEvents,
+        "Bus Noteworthy Events": busNoteworthyEvents,
         "Crosswalk Crossing": crosswalkCrossing,
         "Pedestrian Phase Crossing": pedestrianPhaseCrossing,
         "Intend to Cross Timestamp": intendToCrossTimestamp,
@@ -104,8 +104,8 @@ def parseEnumObjectRow(rowObject):
         "Bus Presence": busPresence,
         "Crossing Location Relative to Bus": crossingLocationToBus,
         "Crossing Location Relative to Bus Stop": crossingLocationRelativeToBusStop,
-        "Bus Noteworthy Events": busNoteworthyEvents,
         "Vehicle Traffic": trafficCondition,
+        "Noteworthy Events": noteworthyEvents,
         "General Reviewer Notes": generalReviewerNotes
     }
     
@@ -147,7 +147,6 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     clothingColor = compare('Clothing Color')
     visibilityScale = compare('Visibility Scale')
     estimatedVisibleDistraction = compare('Estimated Visible Distrction')
-    userNotes = compare('User Notes')
     
     # Bus interaction fields
     busInteraction = compare('Bus Interaction')
@@ -184,6 +183,7 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     noteworthyEvents = combineNotes('Noteworthy Events')
     busNoteworthyEvents = combineNotes('Bus Noteworthy Events')
     generalReviewerNotes = combineNotes('General Reviewer Notes')
+    userNotes = combineNotes('User Notes')
     
     result = parseEnumObjectRow({
         "Video Title": videoTitle,
@@ -226,6 +226,7 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
         "General Reviewer Notes": generalReviewerNotes
     })
     result["sort_key"] = minTime
+    result["CrossingDuration"] = crossingEndTime - crossingStartTime
     return result
 
 def generateQualityControlDataFramebyGraph(refGraph, dflist, accuracy, timeThreshold):
