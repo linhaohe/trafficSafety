@@ -233,6 +233,10 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     result["sort_key"] = minTime
     result["CrossingDuration"] = crossingEndTime - crossingStartTime
     result["IntendCrossingDuration"] = crossingEndTime - intendToCrossTimestamp
+    result["CrossingDuration_toMedian"] = refugeIslandStartTime - crossingStartTime if refugeIslandStartTime > 0 else "N/A"
+    result["CrossingDuration_fromMedian"] = crossingEndTime - refugeIslandEndTime if refugeIslandEndTime > 0 else "N/A"
+    result["Median_WaitTime"] = refugeIslandEndTime - refugeIslandStartTime if refugeIslandEndTime > 0  and refugeIslandStartTime > 0 else "N/A"
+    result["ObservationTime"] = secondsToTimeString(busArrivalTime if busArrivalTime > 0 else crossingStartTime)
     return result
 
 def generateQualityControlDataFramebyGraph(refGraph, dflist, accuracy, timeThreshold):
