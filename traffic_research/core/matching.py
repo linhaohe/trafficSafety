@@ -124,6 +124,7 @@ def generateReferenceGraph(dflist, timeThreshold, percentageThreshold, timeColum
 
 def exportGraphToCsv(graph, csv_path):
     """Export the reference graph to a CSV with one row per node: from_dfName, from_index, then to_dfName_1, to_index_1, score_1, to_dfName_2, ... for all matches in the same row. dfName is stored as filename only (e.g. Alex.csv)."""
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
     def _basename(path):
         return os.path.basename(path) if path else ""
     max_matches = max(len(matches) for _, matches in graph.items()) if graph else 0
@@ -235,13 +236,6 @@ def compareTimeDistance(timeA, timeB, timeC, accuracy, timeThreshold):
     if timeA == -1 and timeB == -1 and timeC == -1:
         accuracy.update(3, 3)
         return -1
-    if timeA == -1:
-        timeA = timeB if timeB != -1 else timeC
-    if timeB == -1:
-        timeB = timeA if timeA != -1 else timeC
-    if timeC == -1:
-        timeC = timeA if timeA != -1 else timeB
-    
     # Calculate distances between pairs
     distAB = abs(timeA - timeB)
     distAC = abs(timeA - timeC)
@@ -270,16 +264,7 @@ def compareTimeDistance(timeA, timeB, timeC, accuracy, timeThreshold):
     # If at least one pair matches
     if matchAB or matchAC or matchBC:
         accuracy.update(3, 1)
-        
-        if matchAB:
-            return timeA if avgA <= avgB else timeB
-        
-        if matchAC:
-            return timeA if avgA <= avgC else timeC
-        
-        if matchBC:
-            return timeB if avgB <= avgC else timeC
-    
+        return max(timeA, timeB, timeC)
     # If all are different (no pairs within threshold)
     accuracy.update(3, 3)
     return -1

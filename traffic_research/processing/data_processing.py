@@ -97,6 +97,15 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
         index=True, 
         header=False
     )
+    names = ['dfNoneBusUserCrossingGraphQC', 'dfBusUserCrossingGraphQC', 'dfBusNotCrossingGraphQC']
+    for index, df in enumerate([dfNoneBusUserCrossingGraphQC, dfBusUserCrossingGraphQC, dfBusNotCrossingGraphQC]):
+        os.makedirs(os.path.join(outputFolderPath, folderName), exist_ok=True)
+        df.transpose().to_csv(
+            os.path.join(os.path.join(outputFolderPath, folderName), names[index] + '.csv'), 
+            index=True, 
+            header=False
+        )
+    
     return dfQualityControl
 
 

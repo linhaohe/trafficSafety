@@ -5,6 +5,8 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+from sklearn import metrics
+
 
 from config import EXCLUDED_FROM_ACCURACY, OUTPUT_PATH
 from traffic_research.processing.quality_control import parseEnumObjectRow
@@ -63,6 +65,7 @@ def visualize_clusters(X_scaled, labels, n_clusters, output_path):
     print(f"Saved cluster visualization to {output_path}")
 
 
+
 def runMode(df, n_clusters):
     # -----------------------------
     # 1. Load & preprocess dataframe
@@ -92,8 +95,12 @@ def runMode(df, n_clusters):
     visualize_clusters(X_scaled, labels, n_clusters,outputClusterFolderPath)
 
     # Assign cluster labels to full dataframe (keep all columns in output)
-    df["cluster"] = labels
-    for cid, group in df.groupby("cluster"):
-        groupDf = parseGroup(group)
-        filename = f"cluster_{cid}.csv"
-        groupDf.to_csv(os.path.join(outputClusterFolderPath, filename), index=False)
+    # df["cluster"] = labels
+    # for cid, group in df.groupby("cluster"):
+    #     groupDf = parseGroup(group)
+    #     filename = f"cluster_{cid}.csv"
+    #     groupDf.to_csv(os.path.join(outputClusterFolderPath, filename), index=False)
+    # labels = kmeans.labels_
+    silhouette_score = metrics.silhouette_score(X_scaled, kmeans.labels_, metric='euclidean')
+    print(f"Silhouette score: {silhouette_score}")
+    return silhouette_score

@@ -1,10 +1,10 @@
 """Quality control functions for generating and testing data quality."""
 
 from typing import Any
-import heapq
 import pandas as pd
 import sys
 import os
+from enum import Enum
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from traffic_research.core.data_engineering import DataEngining, float_cols
 from traffic_research.core.matching import compareParameters, compareTimeDistance
@@ -114,6 +114,7 @@ def parseEnumObjectRow(rowObject):
     
 def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     """Construct a row dictionary by comparing three reviewer rows."""
+    
     def compare(field):
         return compareParameters(row0, row1, row2, field, accuracy)
     
@@ -121,8 +122,10 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
         time0 = row0[field] if row0 is not None else -1
         time1 = row1[field] if row1 is not None else -1
         time2 = row2[field] if row2 is not None else -1
+        
         return compareTimeDistance(time0, time1, time2, accuracy, timeThreshold)
     
+        
     def combineNotes(field):
         list = []
         if row0 is not None and row0[field] != 'nan' and row0[field] !='None':
@@ -187,7 +190,6 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     busNoteworthyEvents = combineNotes('Bus Noteworthy Events')
     generalReviewerNotes = combineNotes('General Reviewer Notes')
     userNotes = combineNotes('User Notes')
-    
     result = parseEnumObjectRow({
         "Video Title": videoTitle,
         'Initials': '',
@@ -230,6 +232,7 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     })
     result["sort_key"] = minTime
     result["CrossingDuration"] = crossingEndTime - crossingStartTime
+    result["IntendCrossingDuration"] = crossingEndTime - intendToCrossTimestamp
     return result
 
 def generateQualityControlDataFramebyGraph(refGraph, dflist, accuracy, timeThreshold):
