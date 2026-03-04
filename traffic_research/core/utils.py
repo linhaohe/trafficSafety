@@ -34,7 +34,7 @@ def enumToString(enumVal, enumList):
                 1: "21-35",  # age_21_35
                 2: "36-50",  # age_36_50
                 3: ">50",    # age_50_plus
-                -1: ""       # other
+                -1: "hard to tell"       # other
             }
             return age_mapping.get(enumVal, "")
         
