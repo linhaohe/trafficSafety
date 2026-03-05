@@ -94,13 +94,22 @@ def runMode(df, n_clusters):
     outputClusterFolderPath = os.path.join(OUTPUT_PATH, 'cluster')
     visualize_clusters(X_scaled, labels, n_clusters,outputClusterFolderPath)
 
-    # Assign cluster labels to full dataframe (keep all columns in output)
-    # df["cluster"] = labels
-    # for cid, group in df.groupby("cluster"):
-    #     groupDf = parseGroup(group)
-    #     filename = f"cluster_{cid}.csv"
-    #     groupDf.to_csv(os.path.join(outputClusterFolderPath, filename), index=False)
-    # labels = kmeans.labels_
     silhouette_score = metrics.silhouette_score(X_scaled, kmeans.labels_, metric='euclidean')
     print(f"Silhouette score: {silhouette_score}")
     return silhouette_score
+
+
+def plotAverageSilhouetteScore(df,numberOfIterations = 10, maxNumberOfClusters=14):
+    sumScores = [0]*(maxNumberOfClusters-1)
+    for i in range(numberOfIterations):
+        for n_clusters in range(2, maxNumberOfClusters):
+            silhouette_score = runMode(df, n_clusters=n_clusters)
+            sumScores[n_clusters-2] += silhouette_score
+    averageScores = [sumScores[i]/numberOfIterations for i in range(maxNumberOfClusters-2)]
+    print(averageScores)
+    plt.plot(range(2, 14), averageScores)
+    plt.xlabel('Number of clusters')
+    plt.ylabel('Average Silhouette score')
+    plt.title('Average Silhouette score vs number of clusters')
+    plt.savefig(os.path.join(OUTPUT_PATH, 'silhouette_score_vs_number_of_clusters.png'))
+    plt.close()
