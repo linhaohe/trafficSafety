@@ -233,7 +233,8 @@ def compareTimeDistance(timeA, timeB, timeC, accuracy, timeThreshold):
     but only if at least one pair is within the time threshold.
     """
     # Handle invalid time values (-1 indicates invalid/missing)
-    if timeA == -1 and timeB == -1 and timeC == -1:
+    countNegative = [timeA, timeB, timeC].count(-1)
+    if countNegative >= 2:
         accuracy.update(3, 3)
         return -1
     # Calculate distances between pairs
@@ -252,14 +253,23 @@ def compareTimeDistance(timeA, timeB, timeC, accuracy, timeThreshold):
     avgC = (distAC + distBC) / 2
     
     # If all three are within threshold of each other
-    if matchAB and matchAC and matchBC:
-        accuracy.update(3, 0)
-        if avgA <= avgB and avgA <= avgC:
-            return timeA
-        elif avgB <= avgA and avgB <= avgC:
-            return timeB
+    if timeA != -1 and timeB != -1 and timeC != -1:
+        if matchAB and matchAC and matchBC:
+            accuracy.update(3, 0)
+            if avgA <= avgB and avgA <= avgC:
+                return timeA
+            elif avgB <= avgA and avgB <= avgC:
+                return timeB
+            else:
+                return timeC
         else:
-            return timeC
+            accuracy.update(3, 1)
+            if avgA <= avgB and avgA <= avgC:
+                return timeA
+            elif avgB <= avgA and avgB <= avgC:
+                return timeB
+            else:
+                return timeC
     
     # If at least one pair matches
     if matchAB or matchAC or matchBC:
