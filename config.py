@@ -16,7 +16,7 @@ INPUT_DATA_PATH = './resource/inputData'
 OUTPUT_PATH = './output'
 ACCURACY_SUMMARY_DIR = os.path.join(OUTPUT_PATH, 'accuracy_summary')
 HUMAN_QC_PATH = './resource/human_quality_control'
-
+CHARACTERISTICS_PATH = './resource/busStopLocationData/characteristics.csv'
 NORTHAMPTON_OUTPUT = os.path.join(OUTPUT_PATH, 'Northampton_Court_House_V43.csv')
 NORTHAMPTON_HUMAN_QC = os.path.join(HUMAN_QC_PATH, 'Norhampton_Court_House.csv')
 BELMONT_OUTPUT = os.path.join(OUTPUT_PATH, 'Belmont+Edward_St_V38.csv')

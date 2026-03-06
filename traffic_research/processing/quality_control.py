@@ -62,7 +62,6 @@ def parseEnumObjectRow(rowObject):
     crossingLocationToBus = enumToStr(rowObject['Crossing Location Relative to Bus'], DataEngining.crossingLocationRelativeToBus)
     crossingLocationRelativeToBusStop = enumToStr(rowObject['Crossing Location Relative to Bus Stop'], DataEngining.crossingLocationRelativeToBusStop)
     trafficCondition = enumToStr(rowObject['Vehicle Traffic'], DataEngining.trafficVolume)
-    initials = rowObject['Initials']
     userCount = rowObject['User Count']
     noteworthyEvents = rowObject['Noteworthy Events']
     busNoteworthyEvents = rowObject['Bus Noteworthy Events']
@@ -70,7 +69,6 @@ def parseEnumObjectRow(rowObject):
 
     result = {
         "Video Title": videoTitle,
-        'Initials': initials,
         "Location Name": locationName,
         "Bus Stop IDs/Addresses": busStopIDs,
         "Count of Bus Stop Routes": busStopRouteCount,
@@ -192,7 +190,6 @@ def constructRowDict(row0, row1, row2, index, accuracy, timeThreshold):
     userNotes = combineNotes('User Notes')
     result = parseEnumObjectRow({
         "Video Title": videoTitle,
-        'Initials': '',
         "Location Name": locationName,
         "Bus Stop IDs/Addresses": busStopIDs,
         "Count of Bus Stop Routes": busStopRouteCount,

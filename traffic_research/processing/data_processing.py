@@ -9,8 +9,38 @@ from traffic_research.core.matching import exportGraphToCsv, generateReferenceGr
 from traffic_research.processing.quality_control import accuracyTest, generateQualityControlDataFramebyGraph
 from traffic_research.core.models import AccuracyScore
 
+def mergeCharacteristicWithQualityDataFrame(qualityDataFrame, characteristics):
+    characteristic_columns = {
+        # 'Location Name': characteristics['GTFSSTOP_NAME'],
+        # 'Bus Stop IDs/Addresses': characteristics['STOP_ID'],
+        # 'Count of Bus Stop Routes': characteristics['Num Bus Routes'],
+        # 'Crossing Treatment': characteristics['SignalizedIntersection'],
+    }
+    qualityDataFrame['Location Name'] = characteristics['GTFSSTOP_NAME']
+    qualityDataFrame['Bus Stop IDs/Addresses'] = characteristics['STOP_ID']
+    qualityDataFrame['Count of Bus Stop Routes'] = characteristics['Num Bus Routes']
+    qualityDataFrame['Crossing Treatment'] = characteristics['SignalizedIntersection']
+    print(characteristic_columns)
+    fieldToExclude = [
+        'STOP_ID',
+        'GTFSSTOP_NAME',
+        'SignalizedIntersection',
+        'Num Bus Routes',
+    ]
+    fieldToAdd = characteristics.keys().difference(fieldToExclude)
 
-def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, timeThreshold):
+    for field in fieldToAdd:
+        characteristic_columns[field] = characteristics[field]
+
+    # Add all characteristic columns in one operation to avoid DataFrame fragmentation.
+    characteristic_block = pd.DataFrame(
+        {column: [value] * len(qualityDataFrame) for column, value in characteristic_columns.items()},
+        index=qualityDataFrame.index,
+    )
+    return pd.concat([qualityDataFrame, characteristic_block], axis=1)
+    
+
+def _processFolder(filePath, outputFolderPath, characteristics, accuracy, percentageThreshold, timeThreshold):
     """Helper function to process a single folder and generate CSV outputs."""
     
     def generateQCDataFrame(graph,dflist):
@@ -92,8 +122,9 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
     exportGraphToCsv(dfBusNotCrossingGraph, os.path.join(outputGraphFolderPath, folderName) + 'BusNotCrossing_graph.csv')
     accuracy.appendFileAccuracy(os.path.basename(filePath), accuracy.getAccuracy())
     accuracy.reset()
+    dfQualityControl = mergeCharacteristicWithQualityDataFrame(dfQualityControl, characteristics)
     dfQualityControl.transpose().to_csv(
-        os.path.join(outputFolderPath, folderName) + '.csv', 
+        os.path.join(outputFolderPath, characteristics['GTFSSTOP_NAME'] + '.csv'), 
         index=True, 
         header=False
     )
@@ -109,15 +140,21 @@ def _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, ti
     return dfQualityControl
 
 
+def loadCharacteristics(characteristicsPath):
+    characteristics = pd.read_csv(characteristicsPath)
+    characteristics = characteristics.set_index('fid')
+    return characteristics
 
-def computeDataFolderToCSV(resourceFolderPath, outputFolderPath, percentageThreshold, timeThreshold):
+def computeDataFolderToCSV(resourceFolderPath, outputFolderPath, characteristicsPath, percentageThreshold, timeThreshold):
     """Process all folders in resource path and generate CSV outputs."""
     allComputedRows = pd.DataFrame(columns=[])
     accuracy = AccuracyScore()
+    characteristics = loadCharacteristics(characteristicsPath)
     for fileFolder in os.listdir(resourceFolderPath):
         filePath = os.path.join(resourceFolderPath, fileFolder)
         if os.path.isdir(filePath):
-           allComputedRows=pd.concat([allComputedRows, _processFolder(filePath, outputFolderPath, accuracy, percentageThreshold, timeThreshold)], ignore_index=False)
+           allComputedRows=pd.concat([allComputedRows, _processFolder(filePath, outputFolderPath, characteristics.loc[int(os.path.basename(filePath))], accuracy, percentageThreshold, timeThreshold)], ignore_index=False)
+        
     accuracyDF = pd.DataFrame(accuracy.getFilesAccuracy(), columns=['Location', 'Accuracy'])
     accuracyDF.to_csv(os.path.join(outputFolderPath, 'interated_summary.csv'), header=True)
     allComputedRows.transpose().to_csv(
