@@ -19,15 +19,25 @@ def mergeCharacteristicWithQualityDataFrame(qualityDataFrame, characteristics):
     qualityDataFrame['Location Name'] = characteristics['GTFSSTOP_NAME']
     qualityDataFrame['Bus Stop IDs/Addresses'] = characteristics['STOP_ID']
     qualityDataFrame['Count of Bus Stop Routes'] = characteristics['Num Bus Routes']
-    qualityDataFrame['Crossing Treatment'] = characteristics['SignalizedIntersection']
-    print(characteristic_columns)
+    qualityDataFrame['Crossing Treatment'] = characteristics['Crossing Treatment']
+    qualityDataFrame['Crosswalk Location Relative to Bus Stop'] = characteristics['Crosswalk location relative to bus stop']
+    qualityDataFrame['Refuge Island'] = characteristics['Refuge Island/Median']
     fieldToExclude = [
         'STOP_ID',
         'GTFSSTOP_NAME',
-        'SignalizedIntersection',
+        'Crossing Treatment',
         'Num Bus Routes',
+        'Crosswalk location relative to bus stop',
+        'Refuge Island/Median'
     ]
-    fieldToAdd = characteristics.keys().difference(fieldToExclude)
+    # Preserve the original order of fields from the characteristics row
+    # and drop the last one so it is not added to characteristic_columns.
+    fieldToAdd = [
+        field for field in characteristics.keys().tolist()
+        if field not in fieldToExclude
+    ]
+    if fieldToAdd:
+        fieldToAdd = fieldToAdd[:-1]
 
     for field in fieldToAdd:
         characteristic_columns[field] = characteristics[field]
